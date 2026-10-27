@@ -1,0 +1,60 @@
+rules_version = '2';
+
+// Clients only read. Every write goes through the backend's Cloud Functions,
+// which use the Admin SDK and bypass these rules. Paths: functions/schema.py.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.admin == true;
+    }
+
+    function published(cid, r) {
+      return get(/databases/$(database)/documents/competitions/$(cid)/rounds/$(r)).data.status == "published";
+    }
+
+    // Anything not matched below, including registrations/{email}, is server only.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    match /competitions/{cid} {
+      allow read: if signedIn();
+
+      match /players/{uid} {
+        allow read: if signedIn();
+      }
+
+      match /leaderboard/{docId} {
+        allow read: if signedIn();
+      }
+
+      match /rounds/{r} {
+        allow read: if signedIn();
+
+        // The seed, until publish copies it onto the round.
+        match /private/{docId} {
+          allow read: if isAdmin();
+        }
+
+        match /submissions/{uid} {
+          allow read: if isAdmin()
+            || (signedIn() && request.auth.uid == uid)
+            || (signedIn() && published(cid, r));
+        }
+
+        match /groups/{gid} {
+          allow read: if isAdmin() || (signedIn() && published(cid, r));
+        }
+
+        match /results/{uid} {
+          allow read: if isAdmin() || (signedIn() && published(cid, r));
+        }
+      }
+    }
+  }
+}

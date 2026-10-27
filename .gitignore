@@ -218,3 +218,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Firebase / macOS
+*.local
+.DS_Store
+firebase-debug.log
+firestore-debug.log
