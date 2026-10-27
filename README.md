@@ -1,4 +1,4 @@
-# Blotto Competition Platform — MVP Design
+# Blotto Competition Platform — MVP High Level Design
 
 ## Overview
 
