@@ -57,7 +57,13 @@ Counts assume everyone submits; no-shows shrink the field before groups are draw
 
 The MVP is one web app and four Firebase services, built around one rule: writes go through Python functions, reads come straight from Firestore.
 
-&#91;embedded content: architecture · who calls what\]
+1. Web app → Hosting: the browser loads the React app from Hosting's CDN.
+2. Web app → Authentication: players and organizers sign in with an email link and receive a token.
+3. Web app → Cloud Functions: every write (joining, submitting, admin actions) is a call to an API function carrying that token.
+4. Cloud Functions → Firestore: functions perform all writes through the Admin SDK; the scoring function runs blotto_engine on each group and saves the output.
+5. Firestore → Web app: browsers read Firestore directly with onSnapshot live listeners, filtered by Security Rules.
+
+Diagram available in discord.
 
 Three flows cover the whole product. **Submitting:** the web app calls a function, which validates with the engine and writes to Firestore. **Scoring:** an admin closes and scores the round, and the engine's results are written but stay hidden. **Reading:** once a round is published, every open browser's live listener picks up the new standings with no extra backend.
 
@@ -93,7 +99,12 @@ Browsers never write: Security Rules deny every client write, and functions writ
 
 Every round moves through four states stored in `rounds/{r}.status`, and Security Rules read that field to decide what players can see. Each transition is an admin button in the console; the backend enforces the deadline either way.
 
-&#91;embedded content: round lifecycle · 4 states\]
+1. Open. An admin opens the round and sets its deadline. Players submit and resubmit until the deadline passes, then an admin closes the round.
+2. Closed. Players who did not submit are eliminated, and groups are drawn from the seed among those who did. An admin then scores the round.
+3. Scored. The engine has run and standings and results are written, but only admins can see them. If something is wrong, the admin fixes it and re-scores, which safely overwrites the previous output. Once the standings look right, an admin publishes.
+4. Published. Results, every allocation and the seed are revealed, and players outside their group's top 25% are eliminated. The next round then opens at step 1, until the final; after the final round, the top-ranked player is crowned champion.
+
+Diagram available in discord.
 
 The review gap between Scored and Published is deliberate: if a bug or a disputed rule turns up, the admin fixes it and re-scores before anyone has seen a result.
 
