@@ -1,0 +1,703 @@
+{
+  "$defs": {
+    "Competition": {
+      "properties": {
+        "championId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Championid"
+        },
+        "config": {
+          "$ref": "#/$defs/GameConfig"
+        },
+        "createdAt": {
+          "format": "date-time",
+          "title": "Createdat",
+          "type": "string"
+        },
+        "currentRound": {
+          "default": 0,
+          "title": "Currentround",
+          "type": "integer"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/CompetitionStatus"
+        }
+      },
+      "required": [
+        "name",
+        "config",
+        "status",
+        "createdAt"
+      ],
+      "title": "Competition",
+      "type": "object"
+    },
+    "CompetitionStatus": {
+      "enum": [
+        "registration",
+        "running",
+        "completed"
+      ],
+      "title": "CompetitionStatus",
+      "type": "string"
+    },
+    "GameConfig": {
+      "description": "Mirrors blotto_engine.GameConfig.",
+      "properties": {
+        "advanceFraction": {
+          "default": 0.25,
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Advancefraction",
+          "type": "number"
+        },
+        "battlefields": {
+          "default": 10,
+          "exclusiveMinimum": 0,
+          "title": "Battlefields",
+          "type": "integer"
+        },
+        "finalThreshold": {
+          "default": 16,
+          "exclusiveMinimum": 0,
+          "title": "Finalthreshold",
+          "type": "integer"
+        },
+        "groups": {
+          "default": 4,
+          "exclusiveMinimum": 0,
+          "title": "Groups",
+          "type": "integer"
+        },
+        "soldiers": {
+          "default": 100,
+          "exclusiveMinimum": 0,
+          "title": "Soldiers",
+          "type": "integer"
+        }
+      },
+      "title": "GameConfig",
+      "type": "object"
+    },
+    "Group": {
+      "properties": {
+        "advanceCount": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Advancecount"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "members": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Members",
+          "type": "array"
+        },
+        "round": {
+          "title": "Round",
+          "type": "integer"
+        },
+        "standings": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/StandingRow"
+          },
+          "title": "Standings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "round",
+        "members"
+      ],
+      "title": "Group",
+      "type": "object"
+    },
+    "LastResult": {
+      "description": "A player's placing in the last round they played, copied at publish.",
+      "properties": {
+        "battlefieldsWon": {
+          "title": "Battlefieldswon",
+          "type": "integer"
+        },
+        "groupId": {
+          "title": "Groupid",
+          "type": "string"
+        },
+        "points": {
+          "title": "Points",
+          "type": "number"
+        },
+        "rank": {
+          "title": "Rank",
+          "type": "integer"
+        },
+        "round": {
+          "title": "Round",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "round",
+        "groupId",
+        "rank",
+        "points",
+        "battlefieldsWon"
+      ],
+      "title": "LastResult",
+      "type": "object"
+    },
+    "Leaderboard": {
+      "properties": {
+        "entries": {
+          "items": {
+            "$ref": "#/$defs/LeaderboardEntry"
+          },
+          "title": "Entries",
+          "type": "array"
+        },
+        "round": {
+          "title": "Round",
+          "type": "integer"
+        },
+        "updatedAt": {
+          "format": "date-time",
+          "title": "Updatedat",
+          "type": "string"
+        }
+      },
+      "required": [
+        "round",
+        "updatedAt",
+        "entries"
+      ],
+      "title": "Leaderboard",
+      "type": "object"
+    },
+    "LeaderboardEntry": {
+      "properties": {
+        "displayName": {
+          "title": "Displayname",
+          "type": "string"
+        },
+        "furthestRound": {
+          "title": "Furthestround",
+          "type": "integer"
+        },
+        "groupId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Groupid"
+        },
+        "groupRank": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Grouprank"
+        },
+        "points": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Points"
+        },
+        "rank": {
+          "title": "Rank",
+          "type": "integer"
+        },
+        "roundEliminated": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Roundeliminated"
+        },
+        "status": {
+          "$ref": "#/$defs/PlayerStatus"
+        },
+        "uid": {
+          "title": "Uid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rank",
+        "uid",
+        "displayName",
+        "status",
+        "furthestRound"
+      ],
+      "title": "LeaderboardEntry",
+      "type": "object"
+    },
+    "MatchSummary": {
+      "properties": {
+        "battlefieldsLost": {
+          "title": "Battlefieldslost",
+          "type": "integer"
+        },
+        "battlefieldsWon": {
+          "title": "Battlefieldswon",
+          "type": "integer"
+        },
+        "opponent": {
+          "title": "Opponent",
+          "type": "string"
+        },
+        "opponentAllocation": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Opponentallocation",
+          "type": "array"
+        },
+        "opponentName": {
+          "title": "Opponentname",
+          "type": "string"
+        },
+        "outcome": {
+          "$ref": "#/$defs/Outcome"
+        }
+      },
+      "required": [
+        "opponent",
+        "opponentName",
+        "opponentAllocation",
+        "battlefieldsWon",
+        "battlefieldsLost",
+        "outcome"
+      ],
+      "title": "MatchSummary",
+      "type": "object"
+    },
+    "Outcome": {
+      "enum": [
+        "win",
+        "tie",
+        "loss"
+      ],
+      "title": "Outcome",
+      "type": "string"
+    },
+    "Player": {
+      "properties": {
+        "displayName": {
+          "title": "Displayname",
+          "type": "string"
+        },
+        "furthestRound": {
+          "default": 0,
+          "title": "Furthestround",
+          "type": "integer"
+        },
+        "joinedAt": {
+          "format": "date-time",
+          "title": "Joinedat",
+          "type": "string"
+        },
+        "lastResult": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LastResult"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "roundEliminated": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Roundeliminated"
+        },
+        "status": {
+          "$ref": "#/$defs/PlayerStatus"
+        }
+      },
+      "required": [
+        "displayName",
+        "status",
+        "joinedAt"
+      ],
+      "title": "Player",
+      "type": "object"
+    },
+    "PlayerResults": {
+      "properties": {
+        "advanced": {
+          "title": "Advanced",
+          "type": "boolean"
+        },
+        "allocation": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Allocation",
+          "type": "array"
+        },
+        "groupId": {
+          "title": "Groupid",
+          "type": "string"
+        },
+        "matches": {
+          "items": {
+            "$ref": "#/$defs/MatchSummary"
+          },
+          "title": "Matches",
+          "type": "array"
+        },
+        "points": {
+          "title": "Points",
+          "type": "number"
+        },
+        "rank": {
+          "title": "Rank",
+          "type": "integer"
+        },
+        "round": {
+          "title": "Round",
+          "type": "integer"
+        },
+        "uid": {
+          "title": "Uid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "uid",
+        "round",
+        "groupId",
+        "allocation",
+        "rank",
+        "points",
+        "advanced",
+        "matches"
+      ],
+      "title": "PlayerResults",
+      "type": "object"
+    },
+    "PlayerStatus": {
+      "enum": [
+        "active",
+        "eliminated",
+        "champion"
+      ],
+      "title": "PlayerStatus",
+      "type": "string"
+    },
+    "Registration": {
+      "properties": {
+        "createdAt": {
+          "format": "date-time",
+          "title": "Createdat",
+          "type": "string"
+        },
+        "email": {
+          "title": "Email",
+          "type": "string"
+        },
+        "uid": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uid"
+        }
+      },
+      "required": [
+        "email",
+        "createdAt"
+      ],
+      "title": "Registration",
+      "type": "object"
+    },
+    "Round": {
+      "properties": {
+        "closedAt": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Closedat"
+        },
+        "deadline": {
+          "format": "date-time",
+          "title": "Deadline",
+          "type": "string"
+        },
+        "groupIds": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Groupids",
+          "type": "array"
+        },
+        "isFinal": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Isfinal"
+        },
+        "number": {
+          "title": "Number",
+          "type": "integer"
+        },
+        "openedAt": {
+          "format": "date-time",
+          "title": "Openedat",
+          "type": "string"
+        },
+        "playerCount": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Playercount"
+        },
+        "publishedAt": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Publishedat"
+        },
+        "scoredAt": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scoredat"
+        },
+        "seed": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Seed"
+        },
+        "status": {
+          "$ref": "#/$defs/RoundStatus"
+        }
+      },
+      "required": [
+        "number",
+        "status",
+        "deadline",
+        "openedAt"
+      ],
+      "title": "Round",
+      "type": "object"
+    },
+    "RoundSecrets": {
+      "properties": {
+        "seed": {
+          "title": "Seed",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "seed"
+      ],
+      "title": "RoundSecrets",
+      "type": "object"
+    },
+    "RoundStatus": {
+      "enum": [
+        "open",
+        "closed",
+        "scored",
+        "published"
+      ],
+      "title": "RoundStatus",
+      "type": "string"
+    },
+    "StandingRow": {
+      "properties": {
+        "advanced": {
+          "title": "Advanced",
+          "type": "boolean"
+        },
+        "battlefieldsWon": {
+          "title": "Battlefieldswon",
+          "type": "integer"
+        },
+        "displayName": {
+          "title": "Displayname",
+          "type": "string"
+        },
+        "losses": {
+          "title": "Losses",
+          "type": "integer"
+        },
+        "points": {
+          "title": "Points",
+          "type": "number"
+        },
+        "rank": {
+          "title": "Rank",
+          "type": "integer"
+        },
+        "tiebreak": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tiebreak"
+        },
+        "ties": {
+          "title": "Ties",
+          "type": "integer"
+        },
+        "uid": {
+          "title": "Uid",
+          "type": "string"
+        },
+        "wins": {
+          "title": "Wins",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "uid",
+        "displayName",
+        "rank",
+        "points",
+        "wins",
+        "ties",
+        "losses",
+        "battlefieldsWon",
+        "advanced"
+      ],
+      "title": "StandingRow",
+      "type": "object"
+    },
+    "Submission": {
+      "properties": {
+        "allocation": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Allocation",
+          "type": "array"
+        },
+        "submittedAt": {
+          "format": "date-time",
+          "title": "Submittedat",
+          "type": "string"
+        },
+        "uid": {
+          "title": "Uid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "uid",
+        "allocation",
+        "submittedAt"
+      ],
+      "title": "Submission",
+      "type": "object"
+    }
+  }
+}
