@@ -1,0 +1,5 @@
+-r functions/requirements.txt
+pytest==9.1.1
+# Direct imports used by the HTTP transport tests
+firebase-admin==7.7.0
+Flask==3.1.3

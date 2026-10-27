@@ -218,3 +218,20 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# API local data, credentials and Firebase-generated artifacts
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.env.*
+*service-account*.json
+*serviceAccount*.json
+*firebase-adminsdk*.json
+credentials.json
+*.pem
+*.key
+.firebase/
+*-debug.log*
+firebase-export-*/
+.DS_Store
