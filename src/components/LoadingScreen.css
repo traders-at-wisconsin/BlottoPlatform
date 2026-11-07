@@ -1,0 +1,35 @@
+.loading-screen {
+  min-height: 100svh;
+  display: grid;
+  place-content: center;
+  gap: 0.65rem;
+  text-align: center;
+  background: var(--bg);
+}
+
+.loading-brand {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text);
+  animation: pulse-brand 1.4s ease-in-out infinite;
+}
+
+.loading-text {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+@keyframes pulse-brand {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}

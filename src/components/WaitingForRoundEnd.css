@@ -1,0 +1,102 @@
+.waiting-screen {
+  width: min(100%, 28rem);
+  margin: 0 auto;
+  padding: 2.5rem 1rem 3rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+  animation: waiting-rise 0.5s ease-out both;
+}
+
+@keyframes waiting-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.waiting-orb {
+  position: relative;
+  width: 5.5rem;
+  height: 5.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.waiting-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+}
+
+.waiting-ring-a {
+  border-top-color: var(--accent);
+  border-right-color: rgba(200, 16, 46, 0.25);
+  animation: waiting-spin 1.1s linear infinite;
+}
+
+.waiting-ring-b {
+  inset: 0.55rem;
+  border-bottom-color: var(--text);
+  border-left-color: rgba(22, 24, 29, 0.15);
+  animation: waiting-spin 1.7s linear infinite reverse;
+}
+
+.waiting-core {
+  position: absolute;
+  inset: 1.35rem;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: waiting-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes waiting-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes waiting-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.82);
+    opacity: 0.7;
+  }
+}
+
+.waiting-eyebrow {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.waiting-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 5vw, 2.1rem);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.waiting-copy {
+  margin: 0;
+  max-width: 22rem;
+  font-size: 0.98rem;
+  line-height: 1.5;
+  color: var(--muted);
+}

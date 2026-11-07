@@ -1,0 +1,46 @@
+.home-page {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.home-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 2rem 1.5rem 4rem;
+  max-width: 40rem;
+  margin: 0 auto;
+  width: 100%;
+  animation: home-fade 0.45s ease-out both;
+}
+
+.home-main-allocate {
+  justify-content: flex-start;
+  max-width: 36rem;
+  padding-top: 1.75rem;
+}
+
+@keyframes home-fade {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.home-status {
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}

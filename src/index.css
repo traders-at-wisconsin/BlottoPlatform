@@ -1,0 +1,44 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Oswald:wght@600;700&display=swap');
+
+:root {
+  --font-display: 'Oswald', sans-serif;
+  --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+  --bg: #ffffff;
+  --surface: #f4f5f7;
+  --border: #dde1e6;
+  --text: #16181d;
+  --muted: #5c6570;
+  --accent: #c8102e;
+  --accent-hover: #a50d25;
+  color: var(--text);
+  background: var(--bg);
+  font-family: var(--font-body);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  min-width: 320px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+button,
+input {
+  font: inherit;
+}
