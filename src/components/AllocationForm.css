@@ -1,0 +1,168 @@
+.allocation-form {
+  width: min(100%, 32rem);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  animation: allocation-fade 0.4s ease-out both;
+}
+
+@keyframes allocation-fade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.allocation-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.allocation-eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.allocation-header h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 4vw, 2rem);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.allocation-total {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.allocation-total small {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.allocation-total.is-over {
+  border-color: #f5c2c8;
+  background: #fdecee;
+  color: #8f1024;
+}
+
+.allocation-copy {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.allocation-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+@media (min-width: 560px) {
+  .allocation-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.allocation-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.allocation-slot span {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.allocation-slot input {
+  width: 100%;
+  min-height: 2.6rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 600;
+  outline: none;
+}
+
+.allocation-slot input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(200, 16, 46, 0.15);
+}
+
+.allocation-message {
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.allocation-message.is-error {
+  background: #fdecee;
+  border: 1px solid #f5c2c8;
+  color: #8f1024;
+}
+
+.allocation-message.is-info {
+  background: #e8f6ef;
+  border: 1px solid #b7e0c9;
+  color: #1f6b45;
+}
+
+.allocation-submit {
+  align-self: stretch;
+  min-height: 2.75rem;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.allocation-submit:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.allocation-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.allocation-status {
+  margin: 0;
+  text-align: center;
+  color: var(--muted);
+}
