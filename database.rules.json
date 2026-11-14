@@ -1,0 +1,102 @@
+{
+  "rules": {
+    "admins": {
+      ".read": "auth != null"
+    },
+    "loggedInUsers": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "tournament": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+    "stages": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+    "results": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+    "players": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid && (!root.child('tournament').child('status').exists() || root.child('tournament').child('status').val() === 'registration')",
+        ".validate": "newData.hasChildren(['name']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 40"
+      }
+    },
+    "games": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      "$gameId": {
+        "submitted": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && root.child('games').child($gameId).child('status').val() === 'open' && now <= root.child('games').child($gameId).child('endsAt').val() + 1500 && root.child('games').child($gameId).child('participants').child($uid).exists()",
+            ".validate": "newData.val() === true"
+          }
+        }
+      }
+    },
+    "submissions": {
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      "$gameId": {
+        ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid",
+          ".write": "auth != null && auth.uid === $uid && root.child('games').child($gameId).child('status').val() === 'open' && now <= root.child('games').child($gameId).child('endsAt').val() + 1500 && root.child('games').child($gameId).child('participants').child($uid).exists()",
+          ".validate": "newData.hasChildren(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']) && newData.child('0').val() + newData.child('1').val() + newData.child('2').val() + newData.child('3').val() + newData.child('4').val() + newData.child('5').val() + newData.child('6').val() + newData.child('7').val() + newData.child('8').val() + newData.child('9').val() === 100",
+          "0": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100 && newData.val() % 1 === 0"
+          },
+          "1": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100 && newData.val() % 1 === 0"
+          },
+          "2": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100 && newData.val() % 1 === 0"
+          },
+          "3": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100 && newData.val() % 1 === 0"
+          },
+          "4": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100 && newData.val() % 1 === 0"
+          },
+          "5": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100 && newData.val() % 1 === 0"
+          },
+          "6": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100 && newData.val() % 1 === 0"
+          },
+          "7": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100 && newData.val() % 1 === 0"
+          },
+          "8": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100 && newData.val() % 1 === 0"
+          },
+          "9": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100 && newData.val() % 1 === 0"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    },
+    "drafts": {
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      "$gameId": {
+        ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid",
+          ".write": "auth != null && auth.uid === $uid && root.child('games').child($gameId).child('status').val() === 'open' && now <= root.child('games').child($gameId).child('endsAt').val() + 1500 && root.child('games').child($gameId).child('participants').child($uid).exists()",
+          "$hill": {
+            ".validate": "$hill.matches(/^[0-9]$/) && newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000 && newData.val() % 1 === 0"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app'
 import { getAnalytics, isSupported } from 'firebase/analytics'
-import { getAuth, GoogleAuthProvider } from 'firebase/auth'
-import { getDatabase } from 'firebase/database'
+import { connectAuthEmulator, getAuth, GoogleAuthProvider } from 'firebase/auth'
+import { connectDatabaseEmulator, getDatabase } from 'firebase/database'
 
 const firebaseConfig = {
   apiKey: 'AIzaSyCRE7yQEmJLUS0hUCzwiEgOGpl6iy_L8Mo',
@@ -21,6 +21,18 @@ export const googleProvider = new GoogleAuthProvider()
 
 googleProvider.setCustomParameters({ prompt: 'select_account' })
 
-isSupported().then((supported) => {
-  if (supported) getAnalytics(app)
-})
+/** `VITE_USE_EMULATOR=true npm run dev` runs against the local emulators (dry runs). */
+const nodeEnv = (globalThis as { process?: { env?: Record<string, string | undefined> } })
+  .process?.env
+export const usingEmulator =
+  (import.meta.env?.VITE_USE_EMULATOR ?? nodeEnv?.VITE_USE_EMULATOR) === 'true'
+if (usingEmulator) {
+  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true })
+  connectDatabaseEmulator(database, '127.0.0.1', 9000)
+}
+
+if (!usingEmulator) {
+  void isSupported().then((supported) => {
+    if (supported) getAnalytics(app)
+  })
+}

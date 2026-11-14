@@ -1,169 +1,83 @@
-import { useMemo, useState, type FormEvent } from 'react'
-import { Navigate } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, Navigate } from 'react-router-dom'
 import { AppHeader } from '../components/AppHeader'
-import { GroupLeaderboard } from '../components/GroupLeaderboard'
+import { Countdown } from '../components/Countdown'
 import { LoadingScreen } from '../components/LoadingScreen'
+import { StageBoard } from '../components/StageBoard'
 import { useAuth } from '../contexts/AuthContext'
-import { useActiveGroupingSet } from '../hooks/useActiveGroupingSet'
-import { useActiveRound } from '../hooks/useActiveRound'
-import { useLoggedInUsers } from '../hooks/useLoggedInUsers'
-import { hardResetGame } from '../lib/adminReset'
-import { displayNameOf } from '../lib/displayName'
-import { createGroupingSet, type StandingEntry } from '../lib/groupingSets'
-import { sortedGroupEntries, type RoundView } from '../lib/roundData'
-import { createRound } from '../lib/rounds'
+import { serverNow, useServerNow } from '../hooks/useServerTime'
+import { nameOf, useTournament, type GameView, type TournamentView } from '../hooks/useTournament'
 import {
-  endRoundAndScore,
-  formatPoints,
-  rankStandings,
-  tieRanks,
-} from '../lib/scoring'
-import { GAME_VARIANTS, type GameVariantId } from '../lib/variants'
-import '../components/GroupLeaderboard.css'
+  GAME_SECONDS,
+  GAMES_PER_STAGE,
+  nextParticipants,
+  SCORE_DELAY_MS,
+  stageAdvancers,
+  stageComplete,
+  suggestStage,
+  type StagePlan,
+} from '../lib/tournament'
+import {
+  createStage,
+  crownChampion,
+  endGameNow,
+  hardReset,
+  removePlayer,
+  scoreGame,
+  startGame,
+} from '../lib/tournamentDb'
+import '../components/tournament.css'
 import './AdminPage.css'
 
-type AdminView = 'rounds' | 'groups'
+function useAction() {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  async function run(action: () => Promise<unknown>) {
+    setBusy(true)
+    setError('')
+    try {
+      await action()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return { busy, error, run }
+}
 
 export function AdminPage() {
   const { isAdmin, adminLoading } = useAuth()
-  const { users, loading: usersLoading } = useLoggedInUsers(isAdmin)
-  const { groupingSet, loading: groupingLoading } =
-    useActiveGroupingSet(isAdmin)
-  const { round: activeRound, loading: activeLoading } =
-    useActiveRound(isAdmin)
+  const view = useTournament()
+  const { busy, error, run } = useAction()
 
-  const [view, setView] = useState<AdminView>('rounds')
-  const [groupCount, setGroupCount] = useState('2')
-  const [variant, setVariant] = useState<GameVariantId>('classic_blotto')
-  const [creatingSet, setCreatingSet] = useState(false)
-  const [creatingRound, setCreatingRound] = useState(false)
-  const [scoring, setScoring] = useState(false)
-  const [resetting, setResetting] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
-
-  const groupsReady = Boolean(groupingSet)
-  const hasLiveRound = Boolean(activeRound && activeRound.status === 'created')
-  const canCreateRound = groupsReady && !hasLiveRound
-
-  const preview = useMemo(() => {
-    const count = Number.parseInt(groupCount, 10)
-    if (!Number.isInteger(count) || count < 1 || users.length === 0) return null
-    if (count > users.length) return null
-    const base = Math.floor(users.length / count)
-    const remainder = users.length % count
-    return {
-      larger: remainder,
-      largerSize: base + 1,
-      smaller: count - remainder,
-      smallerSize: base,
-    }
-  }, [groupCount, users.length])
-
-  const groupingEntries = useMemo(() => {
-    if (!groupingSet) return []
-    return Object.entries(groupingSet.groups).sort(([a], [b]) => {
-      const numA = Number.parseInt(a, 10)
-      const numB = Number.parseInt(b, 10)
-      if (Number.isFinite(numA) && Number.isFinite(numB)) return numA - numB
-      return a.localeCompare(b)
-    })
-  }, [groupingSet])
-
-  if (adminLoading) return <LoadingScreen />
+  if (adminLoading || view.loading) return <LoadingScreen />
   if (!isAdmin) return <Navigate to="/" replace />
-  if (activeLoading || groupingLoading) return <LoadingScreen />
 
-  async function handleHardReset() {
-    const confirmed = window.confirm(
-      'Hard reset clears groups, rounds, and scores. Logged-in users stay signed in. Continue?',
+  const { tournament, players } = view
+
+  async function handleReset() {
+    const clearPlayers = window.confirm(
+      'Hard reset: clears all stages, games and results.\n\nOK = also clear the player list (everyone re-joins).\nCancel = choose whether to keep players.',
     )
-    if (!confirmed) return
-
-    setError('')
-    setSuccess('')
-    setResetting(true)
-    try {
-      await hardResetGame()
-      setView('rounds')
-      setGroupCount('2')
-      setVariant('classic_blotto')
-      setSuccess('Reset complete. Set the number of groups to begin.')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Hard reset failed.')
-    } finally {
-      setResetting(false)
-    }
-  }
-
-  async function handleCreateGroups(event: FormEvent) {
-    event.preventDefault()
-    setError('')
-    setSuccess('')
-    const count = Number.parseInt(groupCount, 10)
-    setCreatingSet(true)
-    try {
-      await createGroupingSet(
-        users.map((user) => ({
-          uid: user.uid,
-          displayName: user.displayName,
-        })),
-        count,
-      )
-      setView('rounds')
-      setSuccess('Groups set.')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to set groups.')
-    } finally {
-      setCreatingSet(false)
-    }
-  }
-
-  async function handleCreateRound(event: FormEvent) {
-    event.preventDefault()
-    if (!groupingSet) return
-    setError('')
-    setSuccess('')
-    setCreatingRound(true)
-    try {
-      await createRound(groupingSet.id, variant)
-      setSuccess('Round started.')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create round.')
-    } finally {
-      setCreatingRound(false)
-    }
-  }
-
-  async function handleEndAndScore() {
-    if (!activeRound) return
-    setError('')
-    setSuccess('')
-    setScoring(true)
-    try {
-      await endRoundAndScore(activeRound.id)
-      setSuccess('Round scored.')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to score round.')
-    } finally {
-      setScoring(false)
-    }
+    if (!clearPlayers && !window.confirm('Reset the tournament but KEEP the player list?')) return
+    await run(() => hardReset(clearPlayers))
   }
 
   return (
     <div className="admin-page">
       <AppHeader />
-      <main className="admin-main">
-        <header className="admin-top">
-          <h1>Admin</h1>
-          <button
-            type="button"
-            className="hard-reset-btn"
-            onClick={() => void handleHardReset()}
-            disabled={resetting}
-          >
-            {resetting ? 'Resetting…' : 'Hard reset'}
-          </button>
+      <main className="admin-main admin-stack">
+        <header className="row spread">
+          <h1 className="display-title">Admin</h1>
+          <div className="row">
+            <Link className="secondary-btn" to="/board" target="_blank" rel="noreferrer">
+              Public board ↗
+            </Link>
+            <button type="button" className="danger-btn" disabled={busy} onClick={() => void handleReset()}>
+              Hard reset
+            </button>
+          </div>
         </header>
 
         {error && (
@@ -171,376 +85,345 @@ export function AdminPage() {
             {error}
           </p>
         )}
-        {success && (
-          <p className="admin-message admin-success" role="status">
-            {success}
-          </p>
+
+        {tournament.status === 'registration' && (
+          <Registration players={players} busy={busy} run={run} />
         )}
-
-        {!groupsReady ? (
-          <>
-            <section className="admin-section">
-              <div className="admin-section-header">
-                <h2>Logged in users</h2>
-                <span className="admin-count">{users.length}</span>
-              </div>
-              {usersLoading ? (
-                <p className="admin-empty">Loading users…</p>
-              ) : users.length === 0 ? (
-                <p className="admin-empty">No users currently logged in.</p>
-              ) : (
-                <ul className="user-list">
-                  {users.map((entry) => (
-                    <li key={entry.uid} className="user-row">
-                      <div className="user-meta">
-                        <p className="user-name">{displayNameOf(entry)}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            <section className="admin-section">
-              <div className="admin-section-header">
-                <h2>Set groups</h2>
-              </div>
-              <form className="create-round-form" onSubmit={handleCreateGroups}>
-                <label className="field">
-                  <span>Number of groups</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={Math.max(users.length, 1)}
-                    step={1}
-                    value={groupCount}
-                    onChange={(e) => setGroupCount(e.target.value)}
-                    disabled={creatingSet || users.length === 0}
-                  />
-                </label>
-                {preview && (
-                  <p className="round-preview">
-                    {users.length} users → {groupCount} groups
-                    {preview.larger > 0
-                      ? ` (${preview.larger}×${preview.largerSize}, ${preview.smaller}×${preview.smallerSize})`
-                      : ` (${preview.smaller}×${preview.smallerSize})`}
-                  </p>
-                )}
-                <button
-                  type="submit"
-                  className="create-round-btn"
-                  disabled={creatingSet || usersLoading || users.length === 0}
-                >
-                  {creatingSet ? 'Setting…' : 'Set groups'}
-                </button>
-              </form>
-            </section>
-          </>
-        ) : (
-          <>
-            <div className="admin-view-tabs" role="tablist" aria-label="Admin views">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={view === 'rounds'}
-                className={`admin-view-tab${view === 'rounds' ? ' is-active' : ''}`}
-                onClick={() => setView('rounds')}
-              >
-                Round manager
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={view === 'groups'}
-                className={`admin-view-tab${view === 'groups' ? ' is-active' : ''}`}
-                onClick={() => setView('groups')}
-              >
-                Groups
-              </button>
-            </div>
-
-            {view === 'groups' ? (
-              <section className="admin-section">
-                <div className="admin-section-header">
-                  <h2>Groups</h2>
-                  <span className="admin-count">
-                    {groupingSet?.groupCount ?? 0}
-                  </span>
-                </div>
-                <div className="group-grid">
-                  {groupingEntries.map(([groupId, members]) => {
-                    const standings = buildGroupStandings(
-                      members,
-                      groupingSet?.standings[groupId] ?? {},
-                    )
-                    const ranks = tieRanks(
-                      standings,
-                      (left, right) => left.points === right.points,
-                    )
-                    return (
-                      <article key={groupId} className="group-card">
-                        <div className="group-card-header">
-                          <h3>Group {groupId}</h3>
-                          <span className="admin-count">
-                            {standings.length}
-                          </span>
-                        </div>
-                        <table className="rank-table admin-rank-table">
-                          <thead>
-                            <tr>
-                              <th scope="col">Rank</th>
-                              <th scope="col">Name</th>
-                              <th scope="col">Wins</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {standings.map((entry, index) => (
-                              <tr key={entry.uid}>
-                                <td className="rank-col">{ranks[index]}</td>
-                                <td className="name-col">
-                                  {displayNameOf(entry)}
-                                </td>
-                                <td className="wins-col">
-                                  {formatPoints(entry.points)}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </article>
-                    )
-                  })}
-                </div>
-              </section>
-            ) : (
-              <section className="admin-section">
-                <div className="admin-section-header">
-                  <h2>Round manager</h2>
-                  {activeRound ? (
-                    <span
-                      className={`status-pill${
-                        activeRound.status === 'scored'
-                          ? ' is-scored'
-                          : ' is-live'
-                      }`}
-                    >
-                      {activeRound.status === 'scored' ? 'Scored' : 'Live'}
-                    </span>
-                  ) : (
-                    <span className="status-pill">No round</span>
-                  )}
-                </div>
-
-                {!activeRound && canCreateRound && (
-                  <form
-                    className="create-round-form"
-                    onSubmit={handleCreateRound}
-                  >
-                    <label className="field">
-                      <span>Round style</span>
-                      <select
-                        value={variant}
-                        onChange={(e) =>
-                          setVariant(e.target.value as GameVariantId)
-                        }
-                        disabled={creatingRound}
-                      >
-                        {Object.values(GAME_VARIANTS).map((entry) => (
-                          <option key={entry.id} value={entry.id}>
-                            {entry.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <p className="round-preview">
-                      {GAME_VARIANTS[variant].description}
-                    </p>
-                    <button
-                      type="submit"
-                      className="create-round-btn"
-                      disabled={creatingRound}
-                    >
-                      {creatingRound ? 'Starting…' : 'Start round'}
-                    </button>
-                  </form>
-                )}
-
-                {activeRound && activeRound.status === 'created' && (
-                  <LiveRoundPanel
-                    round={activeRound}
-                    scoring={scoring}
-                    onEndAndScore={() => void handleEndAndScore()}
-                  />
-                )}
-
-                {activeRound && activeRound.status === 'scored' && (
-                  <>
-                    <p className="round-preview">
-                      Round finished. Results by group:
-                    </p>
-                    <div className="group-grid scored-grid">
-                      {sortedGroupEntries(activeRound).map(([groupId]) => (
-                        <GroupLeaderboard
-                          key={groupId}
-                          groupId={groupId}
-                          scores={activeRound.scores[groupId] ?? {}}
-                        />
-                      ))}
-                    </div>
-                    {canCreateRound && (
-                      <form
-                        className="create-round-form"
-                        onSubmit={handleCreateRound}
-                      >
-                        <div className="admin-section-header">
-                          <h2>Start next round</h2>
-                        </div>
-                        <label className="field">
-                          <span>Round style</span>
-                          <select
-                            value={variant}
-                            onChange={(e) =>
-                              setVariant(e.target.value as GameVariantId)
-                            }
-                            disabled={creatingRound}
-                          >
-                            {Object.values(GAME_VARIANTS).map((entry) => (
-                              <option key={entry.id} value={entry.id}>
-                                {entry.label}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <button
-                          type="submit"
-                          className="create-round-btn"
-                          disabled={creatingRound}
-                        >
-                          {creatingRound ? 'Starting…' : 'Start round'}
-                        </button>
-                      </form>
-                    )}
-                  </>
-                )}
-              </section>
-            )}
-          </>
+        {tournament.status === 'running' && <Running view={view} busy={busy} run={run} />}
+        {tournament.status === 'complete' && (
+          <div className="banner">
+            <p className="eyebrow">Champion</p>
+            <h2 className="display-title">
+              {tournament.championUid ? nameOf(players, tournament.championUid) : '—'}
+            </h2>
+          </div>
         )}
+        {tournament.status !== 'registration' && <StageBoard view={view} />}
       </main>
     </div>
   )
 }
 
-function buildGroupStandings(
-  members: Record<string, { displayName: string | null }>,
-  standings: Record<string, StandingEntry>,
-): StandingEntry[] {
-  const entries: StandingEntry[] = Object.entries(members).map(
-    ([uid, profile]) => {
-      const existing = standings[uid]
-      return {
-        uid,
-        displayName: existing?.displayName ?? profile.displayName,
-        points: existing?.points ?? 0,
-        matches: existing?.matches ?? 0,
-      }
-    },
-  )
-  return rankStandings(entries)
+type ActionProps = {
+  busy: boolean
+  run: (action: () => Promise<unknown>) => Promise<void>
 }
 
-function LiveRoundPanel({
-  round,
-  scoring,
-  onEndAndScore,
+function Registration({ players, busy, run }: ActionProps & { players: Record<string, string> }) {
+  const uids = useMemo(
+    () => Object.keys(players).sort((a, b) => players[a].localeCompare(players[b])),
+    [players],
+  )
+  const suggested = suggestStage(uids.length, 1)
+  return (
+    <>
+      <section className="panel">
+        <div className="row spread">
+          <h2>Registration open</h2>
+          <span className="stat">{uids.length}</span>
+        </div>
+        <p className="muted">
+          Players join by signing in and entering a name. Remove duplicates or joke names before you
+          start; registration locks when round 1 is drawn.
+        </p>
+        <ul className="player-list">
+          {uids.map((uid) => (
+            <li key={uid}>
+              <span>{players[uid]}</span>
+              <button
+                type="button"
+                className="link-btn"
+                disabled={busy}
+                onClick={() => {
+                  if (window.confirm(`Remove ${players[uid]}?`)) void run(() => removePlayer(uid))
+                }}
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+      {suggested ? (
+        <PlanForm
+          key={uids.length}
+          title="Start the tournament"
+          suggested={suggested}
+          players={uids.length}
+          submitLabel="Lock registration and draw groups"
+          busy={busy}
+          onSubmit={(plan) => run(() => createStage(plan, uids, 0))}
+        />
+      ) : (
+        <p className="muted">Need at least 2 players to start.</p>
+      )}
+    </>
+  )
+}
+
+function PlanForm({
+  title,
+  suggested,
+  players,
+  submitLabel,
+  busy,
+  onSubmit,
 }: {
-  round: RoundView
-  scoring: boolean
-  onEndAndScore: () => void
+  title: string
+  suggested: StagePlan
+  players: number
+  submitLabel: string
+  busy: boolean
+  onSubmit: (plan: StagePlan) => void
 }) {
-  const groupEntries = sortedGroupEntries(round)
-  const totalPlayers = groupEntries.reduce(
-    (sum, [, members]) => sum + members.length,
-    0,
-  )
-  const totalSubmitted = groupEntries.reduce(
-    (sum, [, members]) =>
-      sum + members.filter((member) => member.hasAllocation).length,
-    0,
-  )
+  const [plan, setPlan] = useState(suggested)
+  const groupCount = plan.kind === 'bracket' ? Math.floor(players / 2) : plan.groupCount
+  const size = Math.floor(players / Math.max(groupCount, 1))
+  const advancing =
+    plan.kind === 'bracket' ? groupCount : Math.min(plan.advancePerGroup, size) * groupCount
+  const invalid =
+    plan.kind === 'groups'
+      ? plan.groupCount < 1 || plan.groupCount > players || plan.advancePerGroup < 1
+      : players % 2 !== 0
 
   return (
-    <div className="round-detail">
-      <p className="round-preview">
-        {GAME_VARIANTS[round.variant ?? 'classic_blotto']?.label ?? 'Original'}
-        {' · '}
-        {totalSubmitted}/{totalPlayers} players submitted
-      </p>
-
-      <div className="admin-actions">
-        <button
-          type="button"
-          className="end-round-btn"
-          onClick={onEndAndScore}
-          disabled={scoring}
-        >
-          {scoring ? 'Scoring…' : 'End round and score'}
-        </button>
+    <section className="panel">
+      <h2>{title}</h2>
+      <div className="plan-grid">
+        <label className="field">
+          <span>Stage name</span>
+          <input value={plan.name} onChange={(e) => setPlan({ ...plan, name: e.target.value })} />
+        </label>
+        <label className="field">
+          <span>Format</span>
+          <select
+            value={plan.kind}
+            onChange={(e) => setPlan({ ...plan, kind: e.target.value as StagePlan['kind'] })}
+          >
+            <option value="groups">Groups, {GAMES_PER_STAGE} games round robin</option>
+            <option value="bracket">Head-to-head bracket, best of 3</option>
+          </select>
+        </label>
+        {plan.kind === 'groups' && (
+          <>
+            <label className="field">
+              <span>Groups</span>
+              <input
+                type="number"
+                min={1}
+                value={plan.groupCount}
+                onChange={(e) => setPlan({ ...plan, groupCount: Number(e.target.value) })}
+              />
+            </label>
+            <label className="field">
+              <span>Advance per group</span>
+              <input
+                type="number"
+                min={1}
+                value={plan.advancePerGroup}
+                onChange={(e) => setPlan({ ...plan, advancePerGroup: Number(e.target.value) })}
+              />
+            </label>
+          </>
+        )}
       </div>
+      <p className="muted">
+        {plan.kind === 'groups'
+          ? `${players} players → ${groupCount} group${groupCount === 1 ? '' : 's'} of ~${size} → ${advancing} advance`
+          : `${players} players → ${groupCount} match${groupCount === 1 ? '' : 'es'} (1 v ${players}, 2 v ${players - 1}…) → ${advancing} advance`}
+      </p>
+      <button
+        type="button"
+        className="primary-btn"
+        disabled={busy || invalid}
+        onClick={() => onSubmit(plan)}
+      >
+        {submitLabel}
+      </button>
+    </section>
+  )
+}
 
-      <div className="group-grid">
-        {groupEntries.map(([groupId, members]) => {
-          const submittedCount = members.filter((m) => m.hasAllocation).length
-          const totalCount = members.length
+function Running({ view, busy, run }: ActionProps & { view: TournamentView }) {
+  const { stage, stageGames, scoredAllocs, currentGame, players } = view
+  if (!stage) return <p className="muted">No active stage.</p>
 
-          return (
-            <article key={groupId} className="group-card">
-              <div className="group-card-header">
-                <h3>Group {groupId}</h3>
-                <span
-                  className={`submit-fraction${
-                    totalCount > 0 && submittedCount === totalCount
-                      ? ' is-complete'
-                      : ''
-                  }`}
-                >
-                  {submittedCount}/{totalCount} submitted
-                </span>
-              </div>
-              {totalCount > 0 && (
-                <div className="group-progress" aria-hidden="true">
-                  <div
-                    className="group-progress-bar"
-                    style={{
-                      width: `${
-                        totalCount === 0
-                          ? 0
-                          : (submittedCount / totalCount) * 100
-                      }%`,
-                    }}
-                  />
-                </div>
-              )}
-              <ul className="user-list group-member-list">
-                {members.map((member) => (
-                  <li key={member.uid} className="user-row">
-                    <div className="user-meta">
-                      <p className="user-name">{displayNameOf(member)}</p>
-                    </div>
-                    <span
-                      className={`submit-badge${
-                        member.hasAllocation ? ' is-submitted' : ''
-                      }`}
-                    >
-                      {member.hasAllocation ? 'Submitted' : 'Waiting'}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </article>
-          )
-        })}
+  const liveGame = stageGames.find((g) => g.status !== 'scored') ?? null
+  const scoredCount = stageGames.filter((g) => g.status === 'scored').length
+  const complete = !liveGame && stageComplete(stage, scoredAllocs)
+
+  return (
+    <>
+      <section className="panel">
+        <div className="row spread">
+          <div>
+            <p className="eyebrow">Current stage</p>
+            <h2>{stage.name}</h2>
+          </div>
+          <span className="pill">
+            {stage.kind === 'groups'
+              ? `Game ${scoredCount} of ${GAMES_PER_STAGE} done`
+              : `${scoredCount} games played`}
+          </span>
+        </div>
+
+        {liveGame && <LiveGame game={liveGame} view={view} busy={busy} run={run} />}
+
+        {!liveGame && !complete && (
+          <button
+            type="button"
+            className="primary-btn"
+            disabled={busy}
+            onClick={() =>
+              void run(() =>
+                startGame(
+                  stage.id,
+                  stageGames.length + 1,
+                  nextParticipants(stage, scoredAllocs),
+                  serverNow(),
+                ),
+              )
+            }
+          >
+            Start game {stageGames.length + 1} ({GAME_SECONDS}s)
+          </button>
+        )}
+        {!liveGame && currentGame?.status === 'scored' && !complete && (
+          <p className="muted">Players are seeing results. Start the next game when ready.</p>
+        )}
+      </section>
+
+      {complete && <Advance view={view} busy={busy} run={run} key={stage.id} players={players} />}
+    </>
+  )
+}
+
+function LiveGame({ game, view, busy, run }: ActionProps & { game: GameView; view: TournamentView }) {
+  const now = useServerNow(500)
+  const scoringFor = useRef<string | null>(null)
+
+  // Score automatically once the deadline and grace window have passed.
+  useEffect(() => {
+    if (game.status !== 'open' || now < game.endsAt + SCORE_DELAY_MS) return
+    if (scoringFor.current === game.id) return
+    scoringFor.current = game.id
+    void run(() => scoreGame(game.id)).finally(() => {
+      scoringFor.current = null
+    })
+  }, [game.status, game.endsAt, game.id, now, run])
+
+  const participants = Object.keys(game.participants)
+  const submitted = participants.filter((uid) => game.submitted[uid]).length
+  const groups = new Map<string, { total: number; done: number }>()
+  for (const [uid, groupId] of Object.entries(game.participants)) {
+    const entry = groups.get(groupId) ?? { total: 0, done: 0 }
+    entry.total += 1
+    if (game.submitted[uid]) entry.done += 1
+    groups.set(groupId, entry)
+  }
+  const timeUp = now >= game.endsAt
+
+  return (
+    <div className="live-game">
+      <div className="row spread">
+        <div>
+          <p className="eyebrow">Game {game.number} · live</p>
+          <span className="stat">
+            {submitted}/{participants.length}
+          </span>{' '}
+          <span className="muted">submitted</span>
+        </div>
+        <Countdown endsAt={game.endsAt} />
+      </div>
+      <div className="progress">
+        <div style={{ width: `${participants.length ? (submitted / participants.length) * 100 : 0}%` }} />
+      </div>
+      {groups.size > 1 && (
+        <p className="muted">
+          {[...groups.entries()]
+            .sort(([a], [b]) => Number(a) - Number(b))
+            .map(([groupId, g]) => `${view.stage?.kind === 'bracket' ? 'Match' : 'Group'} ${groupId}: ${g.done}/${g.total}`)
+            .join(' · ')}
+        </p>
+      )}
+      <div className="row">
+        {game.status === 'open' && !timeUp && (
+          <button
+            type="button"
+            className="secondary-btn"
+            disabled={busy}
+            onClick={() => {
+              if (window.confirm('End this game now? Unsubmitted players are auto-filled.')) {
+                void run(() => endGameNow(game.id, serverNow()))
+              }
+            }}
+          >
+            End now
+          </button>
+        )}
+        {timeUp && game.status === 'open' && <p className="muted">Time’s up. Scoring in a moment…</p>}
+        {game.status === 'scoring' && (
+          <>
+            <p className="muted">Scoring…</p>
+            {now > game.endsAt + SCORE_DELAY_MS + 15_000 && (
+              <button
+                type="button"
+                className="secondary-btn"
+                disabled={busy}
+                onClick={() => void run(() => scoreGame(game.id, true))}
+              >
+                Retry scoring
+              </button>
+            )}
+          </>
+        )}
       </div>
     </div>
+  )
+}
+
+function Advance({
+  view,
+  busy,
+  run,
+  players,
+}: ActionProps & { view: TournamentView; players: Record<string, string> }) {
+  const { stage, scoredAllocs } = view
+  const advancers = useMemo(
+    () => (stage ? stageAdvancers(stage, scoredAllocs) : []),
+    [stage, scoredAllocs],
+  )
+  if (!stage) return null
+  const suggested = suggestStage(advancers.length, stage.index + 2)
+
+  return (
+    <>
+      <section className="panel">
+        <h2>{stage.name} complete</h2>
+        <p className="muted">
+          {advancers.length} advancing, in seed order:{' '}
+          {advancers.map((uid, i) => `${i + 1}. ${nameOf(players, uid)}`).join(' · ')}
+        </p>
+      </section>
+      {suggested ? (
+        <PlanForm
+          title="Next stage"
+          suggested={suggested}
+          players={advancers.length}
+          submitLabel={`Start ${suggested.name}`}
+          busy={busy}
+          onSubmit={(plan) => run(() => createStage(plan, advancers, stage.index + 1))}
+        />
+      ) : (
+        <button
+          type="button"
+          className="primary-btn"
+          disabled={busy || advancers.length !== 1}
+          onClick={() => void run(() => crownChampion(advancers[0]))}
+        >
+          Crown {advancers[0] ? nameOf(players, advancers[0]) : ''} champion
+        </button>
+      )}
+    </>
   )
 }

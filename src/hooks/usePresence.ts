@@ -10,7 +10,7 @@ import {
 } from 'firebase/database'
 import type { User } from 'firebase/auth'
 import { auth, database } from '../lib/firebase'
-import { playerName } from '../lib/groupMembership'
+import { playerName } from '../lib/displayName'
 
 /** Same lobby record for Google and email/password accounts. */
 export function presenceRecord(user: User) {

@@ -44,3 +44,26 @@
   text-transform: uppercase;
   color: var(--muted);
 }
+
+.home-main-wide {
+  justify-content: flex-start;
+  max-width: 44rem;
+  padding-top: 1.75rem;
+  gap: 1rem;
+}
+
+.home-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.panel.center {
+  justify-items: center;
+  text-align: center;
+  padding: 2rem 1.25rem;
+}
+
+.home-links {
+  justify-content: center;
+  margin-top: 0.5rem;
+}

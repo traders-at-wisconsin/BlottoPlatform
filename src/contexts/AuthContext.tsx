@@ -18,7 +18,7 @@ import {
 } from 'firebase/auth'
 import { onValue, ref } from 'firebase/database'
 import { auth, database, googleProvider } from '../lib/firebase'
-import { playerName } from '../lib/groupMembership'
+import { playerName } from '../lib/displayName'
 import { clearPresence, usePresence, writePresence } from '../hooks/usePresence'
 
 type AuthContextValue = {
@@ -79,8 +79,12 @@ function mapAuthError(error: unknown): string {
 }
 
 function uidIsAdmin(admins: unknown, uid: string): boolean {
-  // RTDB: admins = ["uid1", "uid2", ...]
-  return Array.isArray(admins) && admins.includes(uid)
+  // RTDB: admins/{uid} = true (security rules check this exact shape)
+  return Boolean(
+    admins &&
+      typeof admins === 'object' &&
+      (admins as Record<string, unknown>)[uid] === true,
+  )
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

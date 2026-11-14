@@ -7,3 +7,9 @@ export function displayNameOf(person: {
   if (name) return name
   return 'Player'
 }
+
+export function playerName(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed || null
+}
