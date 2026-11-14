@@ -49,7 +49,7 @@
 
 .rank-card {
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 4px;
   overflow: hidden;
   background: var(--bg);
 }
@@ -89,7 +89,7 @@
 }
 
 .rank-table tbody tr.is-you {
-  background: #fdecee;
+  background: var(--loss-bg);
 }
 
 .rank-table tbody tr.rank-summary td {
@@ -172,7 +172,7 @@
 .leaderboard-you {
   flex-shrink: 0;
   padding: 0.1rem 0.4rem;
-  border-radius: 999px;
+  border-radius: 2px;
   background: var(--accent);
   color: #fff;
   font-size: 0.68rem;

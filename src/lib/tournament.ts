@@ -265,7 +265,11 @@ function breakTie(tied: StandingRow[], games: GameAllocs[], seed: string): Stand
 // ---------------------------------------------------------------------------
 // Bracket matches (best of 3, tied games replayed)
 
-export type BracketGame = { hills: Record<string, number>; winner: string | null }
+export type BracketGame = {
+  hills: Record<string, number>
+  allocs: Record<string, Alloc>
+  winner: string | null
+}
 export type MatchState = {
   players: string[]
   wins: Record<string, number>
@@ -283,7 +287,11 @@ export function matchState(players: string[], games: GameAllocs[]): MatchState {
     const result = playMatch(game[a], game[b])
     const gameWinner = result.aPoints === 1 ? a : result.aPoints === 0 ? b : null
     if (gameWinner) wins[gameWinner] += 1
-    played.push({ hills: { [a]: result.aHills, [b]: result.bHills }, winner: gameWinner })
+    played.push({
+      hills: { [a]: result.aHills, [b]: result.bHills },
+      allocs: { [a]: game[a], [b]: game[b] },
+      winner: gameWinner,
+    })
     if (gameWinner && wins[gameWinner] >= WINS_NEEDED) winner = gameWinner
   }
   return { players, wins, games: played, winner }
@@ -387,4 +395,34 @@ export function projectFormat(players: number, firstStageNumber = 1): ProjectedS
     stages.push({ ...plan, players: remaining, groupSizes, advancing })
     remaining = advancing
   }
+}
+
+// ---------------------------------------------------------------------------
+// Post-game analysis
+
+export type HillRecord = { won: number; tied: number; lost: number }
+
+/** For each hill: how many opponents this player beat, tied and lost to there. */
+export function hillRecords(uid: string, game: GameAllocs, opponents: string[]): HillRecord[] {
+  const mine = game[uid]
+  const records = Array.from({ length: HILLS }, () => ({ won: 0, tied: 0, lost: 0 }))
+  if (!mine) return records
+  for (const opp of opponents) {
+    const theirs = game[opp]
+    if (opp === uid || !theirs) continue
+    for (let i = 0; i < HILLS; i += 1) {
+      if (mine[i] > theirs[i]) records[i].won += 1
+      else if (mine[i] < theirs[i]) records[i].lost += 1
+      else records[i].tied += 1
+    }
+  }
+  return records
+}
+
+/** Average soldiers per hill across the given players' allocations. */
+export function fieldAverage(game: GameAllocs, uids: string[]): number[] {
+  const present = uids.filter((uid) => game[uid])
+  return Array.from({ length: HILLS }, (_, i) =>
+    present.length ? present.reduce((sum, uid) => sum + game[uid][i], 0) / present.length : 0,
+  )
 }

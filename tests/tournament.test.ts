@@ -137,3 +137,15 @@ test('format scales automatically with turnout', async () => {
     assert.equal(stages[stages.length - 1].advancing, 1, `n=${n} ends with a champion`)
   }
 })
+
+test('hill records and field average', async () => {
+  const { hillRecords, fieldAverage, matchState } = await import('../src/lib/tournament.ts')
+  const game = { me: [20, 20, 20, 20, 20, 0, 0, 0, 0, 0], a: even, b: [20, 0, 0, 0, 0, 20, 20, 20, 20, 0] }
+  const rec = hillRecords('me', game, ['me', 'a', 'b'])
+  assert.deepEqual(rec[0], { won: 1, tied: 1, lost: 0 })
+  assert.deepEqual(rec[5], { won: 0, tied: 0, lost: 2 })
+  assert.deepEqual(rec[9], { won: 0, tied: 1, lost: 1 })
+  assert.equal(fieldAverage(game, ['me', 'a', 'b'])[0], 50 / 3)
+  const state = matchState(['me', 'a'], [game])
+  assert.deepEqual(state.games[0].allocs.me, game.me)
+})

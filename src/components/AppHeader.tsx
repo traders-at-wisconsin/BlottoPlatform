@@ -42,7 +42,8 @@ export function HeaderBar({ isAdmin, onSignOut }: HeaderBarProps) {
   return (
     <header className="app-header">
       <Link to="/" className="app-brand">
-        Blotto
+        <span className="brand-mark" aria-hidden="true">◆</span>BLOTTO
+        <span className="brand-sub">traders@wisconsin</span>
       </Link>
 
       <div className="app-header-menu" ref={rootRef}>

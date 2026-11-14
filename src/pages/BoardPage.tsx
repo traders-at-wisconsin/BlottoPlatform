@@ -4,7 +4,7 @@ import { LoadingScreen } from '../components/LoadingScreen'
 import { StageBoard } from '../components/StageBoard'
 import { useServerNow } from '../hooks/useServerTime'
 import { nameOf, useTournament } from '../hooks/useTournament'
-import { GAMES_PER_STAGE } from '../lib/tournament'
+import { fieldAverage, GAMES_PER_STAGE, HILLS } from '../lib/tournament'
 import '../components/tournament.css'
 import './BoardPage.css'
 
@@ -42,7 +42,7 @@ export function BoardPage() {
       <header className="board-header">
         <div>
           <Link to="/" className="board-brand">
-            Blotto
+            ◆ BLOTTO <span className="muted">// traders@wisconsin</span>
           </Link>
           <h1 className="display-title">
             {tournament.status === 'registration' ? 'Waiting room' : stage?.name ?? 'Tournament'}
@@ -81,9 +81,38 @@ export function BoardPage() {
               ))}
           </ul>
         ) : (
-          <StageBoard view={view} />
+          <>
+            {lastGame && stage?.kind === 'groups' && (
+              <FieldStrip
+                title={`Field average · game ${lastGame.number}`}
+                avg={fieldAverage(
+                  view.scoredAllocs[view.scoredAllocs.length - 1],
+                  Object.keys(lastGame.participants),
+                )}
+              />
+            )}
+            <StageBoard view={view} />
+          </>
         )}
       </main>
     </div>
+  )
+}
+
+function FieldStrip({ title, avg }: { title: string; avg: number[] }) {
+  const max = Math.max(1, ...avg)
+  return (
+    <section className="panel">
+      <h2>{title}</h2>
+      <div className="field-strip" role="img" aria-label="Average soldiers per hill">
+        {Array.from({ length: HILLS }, (_, i) => (
+          <div key={i}>
+            <span>{avg[i].toFixed(1)}</span>
+            <i style={{ height: `${(avg[i] / max) * 70}%` }} />
+            <small>H{i + 1}</small>
+          </div>
+        ))}
+      </div>
+    </section>
   )
 }

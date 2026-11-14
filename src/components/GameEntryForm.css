@@ -50,7 +50,7 @@
   gap: 0.25rem;
   padding: 0.45rem 0.7rem;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 4px;
   background: var(--surface);
   font-family: var(--font-display);
   font-size: 1.35rem;
@@ -66,9 +66,9 @@
 }
 
 .allocation-total.is-over {
-  border-color: #f5c2c8;
-  background: #fdecee;
-  color: #8f1024;
+  border-color: var(--loss-border);
+  background: var(--loss-bg);
+  color: var(--loss);
 }
 
 .allocation-copy {
@@ -106,7 +106,7 @@
   width: 100%;
   min-height: 2.6rem;
   padding: 0.5rem 0.65rem;
-  border-radius: 10px;
+  border-radius: 4px;
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--text);
@@ -117,34 +117,34 @@
 
 .allocation-slot input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(200, 16, 46, 0.15);
+  box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
 .allocation-message {
   margin: 0;
   padding: 0.7rem 0.85rem;
-  border-radius: 10px;
+  border-radius: 4px;
   font-size: 0.88rem;
   line-height: 1.4;
 }
 
 .allocation-message.is-error {
-  background: #fdecee;
-  border: 1px solid #f5c2c8;
-  color: #8f1024;
+  background: var(--loss-bg);
+  border: 1px solid var(--loss-border);
+  color: var(--loss);
 }
 
 .allocation-message.is-info {
-  background: #e8f6ef;
-  border: 1px solid #b7e0c9;
-  color: #1f6b45;
+  background: var(--win-bg);
+  border: 1px solid var(--win-border);
+  color: var(--win);
 }
 
 .allocation-submit {
   align-self: stretch;
   min-height: 2.75rem;
   border: none;
-  border-radius: 10px;
+  border-radius: 4px;
   background: var(--accent);
   color: #fff;
   font-size: 0.95rem;
@@ -179,7 +179,7 @@
   align-items: baseline;
   padding: 0.6rem 0.85rem;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 4px;
   background: var(--surface);
   font-size: 0.95rem;
   color: var(--muted);
@@ -192,15 +192,15 @@
 }
 
 .allocation-total-bar.is-ok {
-  background: #e8f6ef;
-  border-color: #b7e0c9;
-  color: #1f6b45;
+  background: var(--win-bg);
+  border-color: var(--win-border);
+  color: var(--win);
 }
 
 .allocation-total-bar.is-over {
-  background: #fdecee;
-  border-color: #f5c2c8;
-  color: #8f1024;
+  background: var(--loss-bg);
+  border-color: var(--loss-border);
+  color: var(--loss);
 }
 
 .allocation-message {
@@ -210,9 +210,9 @@
 }
 
 .allocation-message.is-ok {
-  background: #e8f6ef;
-  border-color: #b7e0c9;
-  color: #1f6b45;
+  background: var(--win-bg);
+  border-color: var(--win-border);
+  color: var(--win);
 }
 
 .allocation-hint {
@@ -222,7 +222,7 @@
 }
 
 .allocation-slot input::placeholder {
-  color: #b3b9c1;
+  color: var(--border-strong);
   font-weight: 500;
 }
 

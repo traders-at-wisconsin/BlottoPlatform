@@ -10,7 +10,14 @@ import { useAuth } from '../contexts/AuthContext'
 import { useServerNow } from '../hooks/useServerTime'
 import { nameOf, useTournament, type TournamentView } from '../hooks/useTournament'
 import { RegisterForm } from '../components/RegisterForm'
-import { GAMES_PER_STAGE, HILLS, rankGroup } from '../lib/tournament'
+import { HillChart } from '../components/HillChart'
+import {
+  fieldAverage,
+  GAMES_PER_STAGE,
+  hillRecords,
+  matchState,
+  rankGroup,
+} from '../lib/tournament'
 import '../components/tournament.css'
 import './HomePage.css'
 
@@ -61,6 +68,7 @@ export function HomePage() {
           {Object.keys(players).length} players registered. The game starts when the host begins
           round 1. Keep this page open.
         </p>
+        <Quip />
         {isAdmin && !isPlayer && (
           <div className="row">
             <Link className="primary-btn" to="/admin">
@@ -153,20 +161,20 @@ function Standings({
   const lastGame = scoredGames[scoredGames.length - 1]
   const mine = lastGame ? results[lastGame.id]?.[uid] : undefined
   const members = stage.groups[groupId]
+  const lastAllocs = view.scoredAllocs[view.scoredAllocs.length - 1]
   const lastRow =
     lastGame && mine
-      ? rankGroup(members, [view.scoredAllocs[view.scoredAllocs.length - 1]], stage.seed).find(
-          (row) => row.uid === uid,
-        )
+      ? rankGroup(members, [lastAllocs], stage.seed).find((row) => row.uid === uid)
       : undefined
+  const bracketWinner =
+    stage.kind === 'bracket' ? matchState(members, view.scoredAllocs).winner : null
 
   let headline: string
-  if (currentGame && currentGame.status !== 'scored' && currentGame.stageId === stage.id) {
-    headline = currentGame.participants[uid]
-      ? secondsLeft(currentGame.endsAt, now) > 0
-        ? 'Game in progress'
-        : 'Time’s up: scoring…'
-      : 'Your match is decided. Other matches are still playing.'
+  if (bracketWinner) {
+    headline = bracketWinner === uid ? 'You advanced!' : 'Knocked out'
+  } else if (currentGame && currentGame.status !== 'scored' && currentGame.stageId === stage.id) {
+    headline =
+      secondsLeft(currentGame.endsAt, now) > 0 ? 'Game in progress' : 'Time’s up: scoring…'
   } else if (!lastGame) {
     headline =
       stage.index === 0 ? `You’re in Group ${groupId}` : `You advanced to the ${stage.name}!`
@@ -182,29 +190,30 @@ function Standings({
           {stage.kind === 'groups' ? ` · Group ${groupId}` : ''}
         </p>
         <h1 className="display-title">{headline}</h1>
-        <p className="muted">Waiting for the host to start the next game.</p>
+        <p className="muted">
+          {bracketWinner && bracketWinner !== uid
+            ? 'Great run. Stick around for the rest of the bracket.'
+            : 'Waiting for the host to start the next game.'}
+        </p>
+        <Quip />
       </div>
 
-      {mine && lastRow && (
+      {mine && lastRow && stage.kind === 'groups' && (
         <div className="panel">
           <div className="row spread">
             <h2>Your game {lastGame.number}</h2>
             {mine.auto && <span className="pill pill-live">Auto-filled</span>}
           </div>
-          <div className="alloc-strip" aria-label="Your allocation">
-            {mine.a.slice(0, HILLS).map((n, i) => (
-              <div key={i}>
-                {n}
-                <small>H{i + 1}</small>
-              </div>
-            ))}
-          </div>
-          {stage.kind === 'groups' && (
-            <p className="muted">
-              This game: {lastRow.wins} wins, {lastRow.ties} ties, {lastRow.losses} losses ·{' '}
-              {lastRow.hillsWon} hills won
-            </p>
-          )}
+          <p className="game-line mono">
+            <b className="win-text">{lastRow.wins}W</b> <span>{lastRow.ties}T</span>{' '}
+            <b className="loss-text">{lastRow.losses}L</b> · {lastRow.hillsWon} hills won · #
+            {lastRow.rank} of {members.length} this game
+          </p>
+          <HillChart
+            alloc={mine.a}
+            records={hillRecords(uid, lastAllocs, members)}
+            fieldAvg={fieldAverage(lastAllocs, members)}
+          />
         </div>
       )}
 
@@ -225,4 +234,22 @@ function Champion({ view, uid }: { view: TournamentView; uid: string }) {
       <StageBoard view={view} highlightUid={uid} />
     </div>
   )
+}
+
+const QUIPS = [
+  'There is no pure-strategy Nash equilibrium here. Randomize accordingly.',
+  'Every allocation is published after each game. Your edge has a half-life.',
+  'Concentrate or diversify? The field decides, not you.',
+  'Overfitting to last game is a strategy. So is fading it.',
+  'Ties on a hill win nothing. Odd numbers are cheap insurance.',
+  'Past performance does not guarantee future hills.',
+]
+
+function Quip() {
+  const [index, setIndex] = useState(() => Math.floor(Math.random() * QUIPS.length))
+  useEffect(() => {
+    const id = window.setInterval(() => setIndex((i) => (i + 1) % QUIPS.length), 8000)
+    return () => window.clearInterval(id)
+  }, [])
+  return <p className="quip mono">&gt; {QUIPS[index]}</p>
 }

@@ -1,15 +1,34 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Oswald:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
 
+/* Trading-terminal theme: dark, hairline borders, mono numbers, UW red. */
 :root {
-  --font-display: 'Oswald', sans-serif;
+  --font-display: 'Space Grotesk', 'IBM Plex Sans', system-ui, sans-serif;
   --font-body: 'IBM Plex Sans', system-ui, sans-serif;
-  --bg: #ffffff;
-  --surface: #f4f5f7;
-  --border: #dde1e6;
-  --text: #16181d;
-  --muted: #5c6570;
-  --accent: #c8102e;
-  --accent-hover: #a50d25;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --bg: #090b0e;
+  --surface: #10141a;
+  --surface-2: #161b22;
+  --border: #232a34;
+  --border-strong: #364252;
+  --line: #1a2029;
+  --text: #e7ecf2;
+  --muted: #8592a3;
+  --accent: #ff2e4d;
+  --accent-hover: #ff5470;
+  --accent-glow: rgba(255, 46, 77, 0.25);
+
+  --win: #33d17a;
+  --win-bg: rgba(51, 209, 122, 0.1);
+  --win-border: rgba(51, 209, 122, 0.4);
+  --loss: #ff5470;
+  --loss-bg: rgba(255, 84, 112, 0.1);
+  --loss-border: rgba(255, 84, 112, 0.4);
+  --tie: #3a4452;
+  --you: #ffc53d;
+  --you-bg: rgba(255, 197, 61, 0.1);
+
+  color-scheme: dark;
   color: var(--text);
   background: var(--bg);
   font-family: var(--font-body);
@@ -34,11 +53,41 @@ body,
 
 body {
   min-width: 320px;
-  background: var(--bg);
   color: var(--text);
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(ellipse at top, rgba(255, 46, 77, 0.07), transparent 55%),
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size:
+    100% 100%,
+    40px 40px,
+    40px 40px;
+  background-attachment: fixed;
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
+}
+
+a {
+  color: var(--accent);
+}
+
+.mono,
+.num,
+.stat,
+.countdown,
+.bracket-wins,
+.allocation-slot input,
+.allocation-total-bar strong {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: var(--accent);
+  color: #fff;
 }

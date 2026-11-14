@@ -15,7 +15,7 @@
 }
 
 .board-brand {
-  font-family: var(--font-display);
+  font-family: var(--font-mono);
   font-size: 1rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -61,7 +61,7 @@
 
 .board-registered li {
   padding: 0.35rem 0;
-  border-bottom: 1px solid #eef0f3;
+  border-bottom: 1px solid var(--line);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
