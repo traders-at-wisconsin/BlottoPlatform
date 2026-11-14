@@ -3,7 +3,9 @@
  *
  * Layout (database.rules.json enforces who can do what):
  *   tournament                    { status, currentStageId, currentGameId, championUid }
- *   players/{uid}                 { name, joinedAt }           player writes own while registration is open
+ *   players/{uid}                 { name, joinedAt }           public; player writes own while registration is open
+ *   registrations/{uid}           { first, last, email }       private: owner + admin
+ *   emails/{email with . -> ,}    uid                          private: one player per email
  *   stages/{stageId}              { index, name, kind, groupCount, advancePerGroup, seed, groups }
  *   games/{gameId}                { stageId, number, status, startedAt, endsAt, participants, submitted }
  *   submissions/{gameId}/{uid}    final allocation              private: owner + admin
@@ -24,6 +26,7 @@ import { database } from './firebase'
 import {
   autofill,
   buildStageGroups,
+  projectFormat,
   GAME_SECONDS,
   isValidAlloc,
   newSeed,
@@ -33,15 +36,57 @@ import {
   type StagePlan,
 } from './tournament'
 
-export async function joinTournament(uid: string, name: string) {
-  await set(ref(database, `players/${uid}`), {
-    name: name.slice(0, 40),
-    joinedAt: serverTimestamp(),
-  })
+export const WISC_EMAIL = /^[a-z0-9._%+-]+@wisc\.edu$/
+
+export function normalizeEmail(email: string) {
+  return email.trim().toLowerCase()
+}
+
+const emailKey = (email: string) => normalizeEmail(email).replaceAll('.', ',')
+
+export type Registration = { first: string; last: string; email: string }
+
+/** Register: public name + private email, one player per email (enforced by rules). */
+export async function registerPlayer(uid: string, reg: Registration) {
+  const first = reg.first.trim().slice(0, 30)
+  const last = reg.last.trim().slice(0, 30)
+  const email = normalizeEmail(reg.email)
+  if (!first || !last) throw new Error('Enter your first and last name.')
+  const taken = await get(ref(database, `emails/${emailKey(email)}`)).catch(() => null)
+  if (taken?.exists() && taken.val() !== uid) {
+    throw new Error(
+      'That email is already registered. If you switched devices, ask an organizer to remove your old entry.',
+    )
+  }
+  try {
+    await update(ref(database), {
+      [`emails/${emailKey(email)}`]: uid,
+      [`registrations/${uid}`]: { first, last, email },
+      [`players/${uid}`]: { name: `${first} ${last}`, joinedAt: serverTimestamp() },
+    })
+  } catch (error) {
+    const code = (error as { code?: string })?.code ?? ''
+    if (code.toUpperCase().includes('PERMISSION')) {
+      throw new Error('Could not register. Registration may be closed, or that email is taken.')
+    }
+    throw error
+  }
 }
 
 export async function removePlayer(uid: string) {
-  await remove(ref(database, `players/${uid}`))
+  const reg = (await get(ref(database, `registrations/${uid}`))).val() as Registration | null
+  await update(ref(database), {
+    [`players/${uid}`]: null,
+    [`registrations/${uid}`]: null,
+    ...(reg?.email ? { [`emails/${emailKey(reg.email)}`]: null } : {}),
+  })
+}
+
+/** Next stage, sized automatically from how many players are left. */
+export async function startNextStage(orderedPlayers: string[], index: number) {
+  const [plan] = projectFormat(orderedPlayers.length, index + 1)
+  if (!plan) throw new Error('Need at least 2 players.')
+  return createStage(plan, orderedPlayers, index)
 }
 
 export async function createStage(
@@ -154,7 +199,7 @@ export async function hardReset(clearPlayers: boolean) {
     submissions: null,
     drafts: null,
     results: null,
-    ...(clearPlayers ? { players: null } : {}),
+    ...(clearPlayers ? { players: null, registrations: null, emails: null } : {}),
   })
 }
 

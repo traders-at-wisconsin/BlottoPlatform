@@ -11,14 +11,16 @@ import {
   GAME_SECONDS,
   GAMES_PER_STAGE,
   nextParticipants,
+  projectFormat,
   SCORE_DELAY_MS,
   stageAdvancers,
   stageComplete,
-  suggestStage,
-  type StagePlan,
+  type ProjectedStage,
 } from '../lib/tournament'
+import { onValue, ref } from 'firebase/database'
+import { database } from '../lib/firebase'
 import {
-  createStage,
+  startNextStage,
   crownChampion,
   endGameNow,
   hardReset,
@@ -114,7 +116,18 @@ function Registration({ players, busy, run }: ActionProps & { players: Record<st
     () => Object.keys(players).sort((a, b) => players[a].localeCompare(players[b])),
     [players],
   )
-  const suggested = suggestStage(uids.length, 1)
+  const [emails, setEmails] = useState<Record<string, string>>({})
+  useEffect(
+    () =>
+      onValue(ref(database, 'registrations'), (snap) => {
+        const next: Record<string, string> = {}
+        Object.entries((snap.val() ?? {}) as Record<string, { email?: string }>).forEach(([uid, reg]) => {
+          if (reg?.email) next[uid] = reg.email
+        })
+        setEmails(next)
+      }),
+    [],
+  )
   return (
     <>
       <section className="panel">
@@ -129,7 +142,9 @@ function Registration({ players, busy, run }: ActionProps & { players: Record<st
         <ul className="player-list">
           {uids.map((uid) => (
             <li key={uid}>
-              <span>{players[uid]}</span>
+              <span title={emails[uid]}>
+                {players[uid]} <small className="muted">{emails[uid]}</small>
+              </span>
               <button
                 type="button"
                 className="link-btn"
@@ -144,103 +159,48 @@ function Registration({ players, busy, run }: ActionProps & { players: Record<st
           ))}
         </ul>
       </section>
-      {suggested ? (
-        <PlanForm
-          key={uids.length}
-          title="Start the tournament"
-          suggested={suggested}
-          players={uids.length}
-          submitLabel="Lock registration and draw groups"
-          busy={busy}
-          onSubmit={(plan) => run(() => createStage(plan, uids, 0))}
-        />
-      ) : (
-        <p className="muted">Need at least 2 players to start.</p>
-      )}
+      <section className="panel">
+        <h2>Start the tournament</h2>
+        {uids.length >= 2 ? (
+          <>
+            <FormatPreview stages={projectFormat(uids.length)} />
+            <button
+              type="button"
+              className="primary-btn"
+              disabled={busy}
+              onClick={() => {
+                if (window.confirm(`Lock registration with ${uids.length} players and draw Round 1?`)) {
+                  void run(() => startNextStage(uids, 0))
+                }
+              }}
+            >
+              Lock registration and start ({uids.length} players)
+            </button>
+          </>
+        ) : (
+          <p className="muted">Need at least 2 players to start.</p>
+        )}
+      </section>
     </>
   )
 }
 
-function PlanForm({
-  title,
-  suggested,
-  players,
-  submitLabel,
-  busy,
-  onSubmit,
-}: {
-  title: string
-  suggested: StagePlan
-  players: number
-  submitLabel: string
-  busy: boolean
-  onSubmit: (plan: StagePlan) => void
-}) {
-  const [plan, setPlan] = useState(suggested)
-  const groupCount = plan.kind === 'bracket' ? Math.floor(players / 2) : plan.groupCount
-  const size = Math.floor(players / Math.max(groupCount, 1))
-  const advancing =
-    plan.kind === 'bracket' ? groupCount : Math.min(plan.advancePerGroup, size) * groupCount
-  const invalid =
-    plan.kind === 'groups'
-      ? plan.groupCount < 1 || plan.groupCount > players || plan.advancePerGroup < 1
-      : players % 2 !== 0
-
+function FormatPreview({ stages }: { stages: ProjectedStage[] }) {
   return (
-    <section className="panel">
-      <h2>{title}</h2>
-      <div className="plan-grid">
-        <label className="field">
-          <span>Stage name</span>
-          <input value={plan.name} onChange={(e) => setPlan({ ...plan, name: e.target.value })} />
-        </label>
-        <label className="field">
-          <span>Format</span>
-          <select
-            value={plan.kind}
-            onChange={(e) => setPlan({ ...plan, kind: e.target.value as StagePlan['kind'] })}
-          >
-            <option value="groups">Groups, {GAMES_PER_STAGE} games round robin</option>
-            <option value="bracket">Head-to-head bracket, best of 3</option>
-          </select>
-        </label>
-        {plan.kind === 'groups' && (
-          <>
-            <label className="field">
-              <span>Groups</span>
-              <input
-                type="number"
-                min={1}
-                value={plan.groupCount}
-                onChange={(e) => setPlan({ ...plan, groupCount: Number(e.target.value) })}
-              />
-            </label>
-            <label className="field">
-              <span>Advance per group</span>
-              <input
-                type="number"
-                min={1}
-                value={plan.advancePerGroup}
-                onChange={(e) => setPlan({ ...plan, advancePerGroup: Number(e.target.value) })}
-              />
-            </label>
-          </>
-        )}
-      </div>
-      <p className="muted">
-        {plan.kind === 'groups'
-          ? `${players} players → ${groupCount} group${groupCount === 1 ? '' : 's'} of ~${size} → ${advancing} advance`
-          : `${players} players → ${groupCount} match${groupCount === 1 ? '' : 'es'} (1 v ${players}, 2 v ${players - 1}…) → ${advancing} advance`}
-      </p>
-      <button
-        type="button"
-        className="primary-btn"
-        disabled={busy || invalid}
-        onClick={() => onSubmit(plan)}
-      >
-        {submitLabel}
-      </button>
-    </section>
+    <ol className="format-preview">
+      {stages.map((stage, i) => (
+        <li key={i}>
+          <strong>{stage.name}</strong>{' '}
+          <span className="muted">
+            {stage.kind === 'bracket'
+              ? `${stage.players} players, ${stage.groupSizes.length === 1 ? 'head to head' : `${stage.groupSizes.length} head-to-head matches`}, best of 3`
+              : `${stage.players} players in ${stage.groupSizes.length === 1 ? '1 group' : `${stage.groupSizes.length} groups of ${Math.min(...stage.groupSizes)}${Math.max(...stage.groupSizes) !== Math.min(...stage.groupSizes) ? `–${Math.max(...stage.groupSizes)}` : ''}`}, ${GAMES_PER_STAGE} games, top ${stage.advancePerGroup}${stage.groupSizes.length > 1 ? ' per group' : ''} advance`}
+            {' → '}
+            {stage.advancing === 1 ? 'champion' : `${stage.advancing} advance`}
+          </span>
+        </li>
+      ))}
+    </ol>
   )
 }
 
@@ -394,26 +354,27 @@ function Advance({
     [stage, scoredAllocs],
   )
   if (!stage) return null
-  const suggested = suggestStage(advancers.length, stage.index + 2)
+  const remainingFormat = projectFormat(advancers.length, stage.index + 2)
 
   return (
-    <>
-      <section className="panel">
-        <h2>{stage.name} complete</h2>
-        <p className="muted">
-          {advancers.length} advancing, in seed order:{' '}
-          {advancers.map((uid, i) => `${i + 1}. ${nameOf(players, uid)}`).join(' · ')}
-        </p>
-      </section>
-      {suggested ? (
-        <PlanForm
-          title="Next stage"
-          suggested={suggested}
-          players={advancers.length}
-          submitLabel={`Start ${suggested.name}`}
-          busy={busy}
-          onSubmit={(plan) => run(() => createStage(plan, advancers, stage.index + 1))}
-        />
+    <section className="panel">
+      <h2>{stage.name} complete</h2>
+      <p className="muted">
+        {advancers.length} advancing, in seed order:{' '}
+        {advancers.map((uid, i) => `${i + 1}. ${nameOf(players, uid)}`).join(' · ')}
+      </p>
+      {remainingFormat.length > 0 ? (
+        <>
+          <FormatPreview stages={remainingFormat} />
+          <button
+            type="button"
+            className="primary-btn"
+            disabled={busy}
+            onClick={() => void run(() => startNextStage(advancers, stage.index + 1))}
+          >
+            Start {remainingFormat[0].name}
+          </button>
+        </>
       ) : (
         <button
           type="button"
@@ -424,6 +385,6 @@ function Advance({
           Crown {advancers[0] ? nameOf(players, advancers[0]) : ''} champion
         </button>
       )}
-    </>
+    </section>
   )
 }

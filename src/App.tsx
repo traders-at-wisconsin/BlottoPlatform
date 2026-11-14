@@ -4,15 +4,22 @@ import { LoadingScreen } from './components/LoadingScreen'
 import { AuthPage } from './pages/AuthPage'
 import { BoardPage } from './pages/BoardPage'
 import { HomePage } from './pages/HomePage'
-import { NamePage } from './pages/NamePage'
+import { JoinPage } from './pages/JoinPage'
 import { AdminPage } from './pages/AdminPage'
 
+function OrganizerRoute() {
+  const { user, loading } = useAuth()
+  if (loading) return <LoadingScreen />
+  if (user && !user.isAnonymous) return <Navigate to="/admin" replace />
+  return <AuthPage />
+}
+
 function ProtectedRoutes() {
-  const { user, loading, needsDisplayName } = useAuth()
+  const { user, loading, joining } = useAuth()
 
   if (loading) return <LoadingScreen />
-  if (!user) return <AuthPage />
-  if (needsDisplayName) return <NamePage />
+  // Stay on the join form until an anonymous player's registration finishes.
+  if (!user || joining) return <JoinPage />
 
   return (
     <Routes>
@@ -33,7 +40,10 @@ export default function App() {
           path="*"
           element={
             <AuthProvider>
-              <ProtectedRoutes />
+              <Routes>
+                <Route path="/organizer" element={<OrganizerRoute />} />
+                <Route path="*" element={<ProtectedRoutes />} />
+              </Routes>
             </AuthProvider>
           }
         />

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { AppHeader } from '../components/AppHeader'
 import { secondsLeft } from '../components/Countdown'
@@ -9,35 +9,22 @@ import { StageBoard } from '../components/StageBoard'
 import { useAuth } from '../contexts/AuthContext'
 import { useServerNow } from '../hooks/useServerTime'
 import { nameOf, useTournament, type TournamentView } from '../hooks/useTournament'
-import { joinTournament } from '../lib/tournamentDb'
+import { RegisterForm } from '../components/RegisterForm'
 import { GAMES_PER_STAGE, HILLS, rankGroup } from '../lib/tournament'
 import '../components/tournament.css'
 import './HomePage.css'
 
 export function HomePage() {
-  const { user, isAdmin, adminLoading } = useAuth()
+  const { user, isAdmin } = useAuth()
   const view = useTournament()
   const { tournament, players, stage, currentGame, loading } = view
   const uid = user?.uid ?? ''
   const [showHelp, setShowHelp] = useState(false)
-  const joining = useRef(false)
+  const [organizerJoining, setOrganizerJoining] = useState(false)
   const now = useServerNow(500)
 
   const isPlayer = Boolean(players[uid])
   const registrationOpen = tournament.status === 'registration'
-
-  // Signing in during registration is joining (organizers join explicitly).
-  function join() {
-    if (!user || joining.current) return
-    joining.current = true
-    void joinTournament(user.uid, user.displayName ?? 'Player').finally(() => {
-      joining.current = false
-    })
-  }
-  useEffect(() => {
-    if (loading || adminLoading || isAdmin || !user || isPlayer || !registrationOpen) return
-    join()
-  })
 
   const inGame = Boolean(
     currentGame &&
@@ -60,12 +47,15 @@ export function HomePage() {
   let content: ReactNode
   if (tournament.status === 'complete') {
     content = <Champion view={view} uid={uid} />
+  } else if (registrationOpen && !isPlayer && (!isAdmin || organizerJoining)) {
+    // Signed in (e.g. with Google) but not registered yet.
+    content = <RegisterForm />
   } else if (registrationOpen) {
     content = (
       <div className="panel center">
         <p className="eyebrow">Waiting room</p>
         <h1 className="display-title">
-          {isPlayer ? 'You’re in' : isAdmin ? 'You’re an organizer' : 'Joining…'}
+          {isPlayer ? `You’re in, ${players[uid]}` : 'You’re an organizer'}
         </h1>
         <p className="muted">
           {Object.keys(players).length} players registered. The game starts when the host begins
@@ -76,7 +66,7 @@ export function HomePage() {
             <Link className="primary-btn" to="/admin">
               Admin console
             </Link>
-            <button type="button" className="secondary-btn" onClick={join}>
+            <button type="button" className="secondary-btn" onClick={() => setOrganizerJoining(true)}>
               Join as a player
             </button>
           </div>

@@ -366,3 +366,25 @@ export function buildStageGroups(plan: StagePlan, orderedPlayers: string[], seed
     ? seedBracket(orderedPlayers)
     : drawGroups(orderedPlayers, plan.groupCount, seed)
 }
+
+export type ProjectedStage = StagePlan & { players: number; groupSizes: number[]; advancing: number }
+
+/** The whole format, picked automatically from the number of players. */
+export function projectFormat(players: number, firstStageNumber = 1): ProjectedStage[] {
+  const stages: ProjectedStage[] = []
+  let remaining = players
+  for (let stageNumber = firstStageNumber; ; stageNumber += 1) {
+    const plan = suggestStage(remaining, stageNumber)
+    if (!plan) return stages
+    const groupCount = plan.kind === 'bracket' ? Math.floor(remaining / 2) : Math.min(plan.groupCount, remaining)
+    const groupSizes = Array.from({ length: groupCount }, (_, i) =>
+      Math.floor(remaining / groupCount) + (i < remaining % groupCount ? 1 : 0),
+    )
+    const advancing =
+      plan.kind === 'bracket'
+        ? groupCount
+        : groupSizes.reduce((sum, size) => sum + Math.min(plan.advancePerGroup, size), 0)
+    stages.push({ ...plan, players: remaining, groupSizes, advancing })
+    remaining = advancing
+  }
+}

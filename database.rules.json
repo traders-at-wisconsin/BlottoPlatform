@@ -26,7 +26,7 @@
       ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
       "$uid": {
         ".write": "auth != null && auth.uid === $uid && (!root.child('tournament').child('status').exists() || root.child('tournament').child('status').val() === 'registration')",
-        ".validate": "newData.hasChildren(['name']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 40"
+        ".validate": "newData.hasChildren(['name']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 40 && newData.parent().parent().child('registrations').child($uid).exists()"
       }
     },
     "games": {
@@ -96,6 +96,23 @@
             ".validate": "$hill.matches(/^[0-9]$/) && newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000 && newData.val() % 1 === 0"
           }
         }
+      }
+    },
+    "emails": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      "$key": {
+        ".write": "auth != null && (!root.child('tournament').child('status').exists() || root.child('tournament').child('status').val() === 'registration') && (!data.exists() || data.val() === auth.uid)",
+        ".validate": "newData.val() === auth.uid"
+      }
+    },
+    "registrations": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && (!root.child('tournament').child('status').exists() || root.child('tournament').child('status').val() === 'registration')",
+        ".validate": "newData.hasChildren(['first', 'last', 'email']) && newData.child('first').isString() && newData.child('first').val().length > 0 && newData.child('first').val().length <= 30 && newData.child('last').isString() && newData.child('last').val().length > 0 && newData.child('last').val().length <= 30 && newData.child('email').isString() && newData.child('email').val().length <= 100 && (newData.child('email').val().matches(/^[a-z0-9._%+-]+@wisc\\.edu$/) || (auth.token.firebase.sign_in_provider === 'google.com' && newData.child('email').val() === auth.token.email.toLowerCase())) && newData.parent().parent().child('emails').child(newData.child('email').val().replace('.', ',')).val() === $uid"
       }
     }
   }

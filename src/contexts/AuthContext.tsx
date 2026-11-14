@@ -11,6 +11,7 @@ import {
   onAuthStateChanged,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
+  signInAnonymously,
   signInWithPopup,
   signOut,
   updateProfile,
@@ -18,7 +19,6 @@ import {
 } from 'firebase/auth'
 import { onValue, ref } from 'firebase/database'
 import { auth, database, googleProvider } from '../lib/firebase'
-import { playerName } from '../lib/displayName'
 import { clearPresence, usePresence, writePresence } from '../hooks/usePresence'
 
 type AuthContextValue = {
@@ -27,6 +27,9 @@ type AuthContextValue = {
   isAdmin: boolean
   adminLoading: boolean
   signInWithGoogle: () => Promise<void>
+  /** True while an anonymous player is being signed in and registered. */
+  joining: boolean
+  joinAnonymously: (register: (uid: string) => Promise<void>) => Promise<void>
   signInWithEmail: (email: string, password: string) => Promise<void>
   signUpWithEmail: (
     email: string,
@@ -34,7 +37,6 @@ type AuthContextValue = {
     displayName: string,
   ) => Promise<void>
   saveDisplayName: (displayName: string) => Promise<void>
-  needsDisplayName: boolean
   resetPassword: (email: string) => Promise<void>
   logOut: () => Promise<void>
 }
@@ -93,6 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false)
   const [adminLoading, setAdminLoading] = useState(false)
   const [profileEpoch, setProfileEpoch] = useState(0)
+  const [joining, setJoining] = useState(false)
 
   useEffect(() => {
     return onAuthStateChanged(auth, (nextUser) => {
@@ -132,7 +135,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       isAdmin,
       adminLoading,
-      needsDisplayName: Boolean(user && !playerName(user.displayName)),
+      joining,
+      async joinAnonymously(register) {
+        setJoining(true)
+        try {
+          const credential = auth.currentUser
+            ? { user: auth.currentUser }
+            : await signInAnonymously(auth)
+          await register(credential.user.uid)
+        } catch (error) {
+          const code = (error as { code?: string })?.code ?? ''
+          if (code === 'auth/operation-not-allowed' || code === 'auth/admin-restricted-operation') {
+            throw new Error('Sign-up is not enabled yet. Ask an organizer.')
+          }
+          throw error
+        } finally {
+          setJoining(false)
+        }
+      },
       async signInWithGoogle() {
         try {
           await signInWithPopup(auth, googleProvider)
@@ -193,7 +213,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
     }),
-    [user, loading, isAdmin, adminLoading, profileEpoch],
+    [user, loading, isAdmin, adminLoading, profileEpoch, joining],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

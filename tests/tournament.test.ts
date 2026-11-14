@@ -124,3 +124,16 @@ test('full format reaches 16, then 4, then a champion', () => {
     assert.deepEqual(names, ['Round 1', 'Round 2', 'Semifinal', 'Finals', 'Championship'])
   }
 })
+
+test('format scales automatically with turnout', async () => {
+  const { projectFormat } = await import('../src/lib/tournament.ts')
+  const names = (n: number) => projectFormat(n).map((s) => `${s.name}:${s.players}`)
+  assert.deepEqual(names(200), ['Round 1:200', 'Round 2:48', 'Semifinal:16', 'Finals:4', 'Championship:2'])
+  assert.deepEqual(names(150), ['Round 1:150', 'Round 2:48', 'Semifinal:16', 'Finals:4', 'Championship:2'])
+  assert.deepEqual(names(40), ['Round 1:40', 'Semifinal:16', 'Finals:4', 'Championship:2'])
+  assert.deepEqual(names(10), ['Semifinal:10', 'Finals:4', 'Championship:2'])
+  for (let n = 2; n <= 400; n += 1) {
+    const stages = projectFormat(n)
+    assert.equal(stages[stages.length - 1].advancing, 1, `n=${n} ends with a champion`)
+  }
+})

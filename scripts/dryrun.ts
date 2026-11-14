@@ -17,6 +17,9 @@ import {
   connectAuthEmulator,
   createUserWithEmailAndPassword,
   getAuth,
+  GoogleAuthProvider,
+  signInAnonymously,
+  signInWithCredential,
 } from 'firebase/auth'
 import {
   connectDatabaseEmulator,
@@ -61,13 +64,23 @@ async function denied(label: string, write: () => Promise<unknown>) {
 
 type Bot = { uid: string; name: string; app: FirebaseApp; db: Database }
 
+/** Same multi-path write as registerPlayer(), from the bot's own session. */
+function register(bot: Bot, email = `bot${bot.name.split(' ')[1]}-${run}@wisc.edu`) {
+  const [first, last] = bot.name.split(' ')
+  return update(ref(bot.db), {
+    [`emails/${email.replaceAll('.', ',')}`]: bot.uid,
+    [`registrations/${bot.uid}`]: { first, last, email },
+    [`players/${bot.uid}`]: { name: bot.name },
+  })
+}
+
 async function makeBot(index: number): Promise<Bot> {
   const app = initializeApp(mainApp.options, `bot-${index}`)
   const botAuth = getAuth(app)
   connectAuthEmulator(botAuth, 'http://127.0.0.1:9099', { disableWarnings: true })
   const botDb = getDatabase(app)
   connectDatabaseEmulator(botDb, '127.0.0.1', 9000)
-  const cred = await createUserWithEmailAndPassword(botAuth, `bot${index}-${run}@dry.run`, 'password123')
+  const cred = await signInAnonymously(botAuth)
   return { uid: cred.user.uid, name: `Bot ${index}`, app, db: botDb }
 }
 
@@ -127,7 +140,7 @@ async function botsOnly() {
     console.error('Tournament already started: hard reset from the admin page first.')
     process.exit(1)
   }
-  await Promise.all(bots.map((bot) => set(ref(bot.db, `players/${bot.uid}`), { name: bot.name })))
+  await Promise.all(bots.map((bot) => register(bot)))
   console.log(`${BOTS} bots joined. Start the tournament from /admin; bots answer within 5-80s.`)
   console.log('To make yourself admin: sign up in the app, then in the Emulator UI (http://127.0.0.1:4000/database) add admins/<your uid> = true.')
 
@@ -171,8 +184,35 @@ async function main() {
     )
     batch.forEach((bot) => bots.set(bot.uid, bot))
   }
-  await Promise.all([...bots.values()].map((bot) => set(ref(bot.db, `players/${bot.uid}`), { name: bot.name })))
+  await Promise.all([...bots.values()].map((bot) => register(bot)))
   const [bot0, bot1] = [...bots.values()]
+
+  // Rules: registration needs a unique wisc.edu email and stays private.
+  const extra = await makeBot(8888)
+  await denied('registering an email someone else has', () => register(extra, `bot0-${run}@wisc.edu`))
+  await denied('registering a non-wisc email', () => register(extra, `someone-${run}@gmail.com`))
+  await denied('a player record without registration', () => set(ref(extra.db, `players/${extra.uid}`), { name: 'Sneaky' }))
+  await denied("reading other players' emails", () => get(ref(bot0.db, 'registrations')))
+  await denied('reading the email index', () => get(ref(bot0.db, 'emails')))
+  check((await get(ref(bot0.db, `registrations/${bot0.uid}`))).exists(), 'player can read own registration')
+
+  // Google players register with their Google email (any domain), and only that email.
+  const gApp = initializeApp(mainApp.options, 'google-bot')
+  const gAuth = getAuth(gApp)
+  connectAuthEmulator(gAuth, 'http://127.0.0.1:9099', { disableWarnings: true })
+  const gDb = getDatabase(gApp)
+  connectDatabaseEmulator(gDb, '127.0.0.1', 9000)
+  const gEmail = `Google.Player-${run}@gmail.com`
+  const gCred = await signInWithCredential(
+    gAuth,
+    GoogleAuthProvider.credential(JSON.stringify({ sub: `g-${run}`, email: gEmail, email_verified: true })),
+  )
+  const gBot: Bot = { uid: gCred.user.uid, name: 'Google Player', app: gApp, db: gDb }
+  await denied('Google player claiming a different email', () => register(gBot, `other-${run}@gmail.com`))
+  await register(gBot, gEmail.toLowerCase())
+  check((await get(ref(database, `players/${gBot.uid}`))).exists(), 'Google player registered with own email')
+  await db.removePlayer(gBot.uid)
+  check(!(await get(ref(database, `emails/${gEmail.toLowerCase().replaceAll('.', ',')}`))).exists(), 'removing a player frees their email')
 
   // Rules: players can't touch tournament state or other players.
   await denied('player writing tournament', () => set(ref(bot0.db, 'tournament/status'), 'complete'))
@@ -181,11 +221,8 @@ async function main() {
 
   const lateBot = await makeBot(9999)
   const uids = [...bots.keys()]
-  const plan = T.suggestStage(uids.length, 1)!
-  await db.createStage(plan, uids, 0)
-  await denied('joining after registration closed', () =>
-    set(ref(lateBot.db, `players/${lateBot.uid}`), { name: 'Late' }),
-  )
+  await db.startNextStage(uids, 0)
+  await denied('joining after registration closed', () => register(lateBot))
 
   let firstGame = true
   const eliminated = new Set<string>()
@@ -262,8 +299,7 @@ async function main() {
     }
 
     const advancers = T.stageAdvancers(stage, allocs)
-    const next = T.suggestStage(advancers.length, stageRaw.index + 2)
-    if (next) await db.createStage(next, advancers, stageRaw.index + 1)
+    if (advancers.length > 1) await db.startNextStage(advancers, stageRaw.index + 1)
     else await db.crownChampion(advancers[0])
   }
 
