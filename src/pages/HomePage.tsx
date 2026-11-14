@@ -3,7 +3,11 @@ import { Link } from 'react-router-dom'
 import { AppHeader } from '../components/AppHeader'
 import { secondsLeft } from '../components/Countdown'
 import { GameEntryForm } from '../components/GameEntryForm'
-import { InstructionsModal, instructionsSeen } from '../components/InstructionsModal'
+import {
+  InstructionsModal,
+  instructionsSeen,
+  weightedRulesSeen,
+} from '../components/InstructionsModal'
 import { LoadingScreen } from '../components/LoadingScreen'
 import { StageBoard } from '../components/StageBoard'
 import { useAuth } from '../contexts/AuthContext'
@@ -41,9 +45,13 @@ export function HomePage() {
   )
 
   // Pop the instructions up once in the waiting room.
+  const inWeightedStage = Boolean(
+    stage?.scoring === 'weighted' && Object.values(stage.groups).some((m) => m.includes(uid)),
+  )
   useEffect(() => {
-    if (!loading && isPlayer && !inGame && !instructionsSeen()) setShowHelp(true)
-  }, [loading, isPlayer, inGame])
+    if (loading || !isPlayer || inGame) return
+    if (!instructionsSeen() || (inWeightedStage && !weightedRulesSeen())) setShowHelp(true)
+  }, [loading, isPlayer, inGame, inWeightedStage])
 
   if (loading || !user) return <LoadingScreen />
 
@@ -98,6 +106,7 @@ export function HomePage() {
         key={currentGame.id}
         gameId={currentGame.id}
         uid={uid}
+        scoring={stage.scoring}
         endsAt={currentGame.endsAt}
         eyebrow={`${stage.name} · ${
           stage.kind === 'bracket' ? 'Head to head' : `Group ${groupId}`
@@ -140,7 +149,11 @@ export function HomePage() {
           </div>
         )}
       </main>
-      <InstructionsModal open={showHelp} onClose={() => setShowHelp(false)} />
+      <InstructionsModal
+        open={showHelp}
+        onClose={() => setShowHelp(false)}
+        weighted={inWeightedStage}
+      />
     </div>
   )
 }
@@ -167,7 +180,7 @@ function Standings({
       ? rankGroup(members, [lastAllocs], stage.seed).find((row) => row.uid === uid)
       : undefined
   const bracketWinner =
-    stage.kind === 'bracket' ? matchState(members, view.scoredAllocs).winner : null
+    stage.kind === 'bracket' ? matchState(members, view.scoredAllocs, stage.scoring).winner : null
 
   let headline: string
   if (bracketWinner) {

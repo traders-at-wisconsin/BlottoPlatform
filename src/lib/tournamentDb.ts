@@ -101,6 +101,7 @@ export async function createStage(
       index,
       name: plan.name,
       kind: plan.kind,
+      scoring: plan.scoring,
       groupCount: plan.groupCount,
       advancePerGroup: plan.advancePerGroup,
       seed,

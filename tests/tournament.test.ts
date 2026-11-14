@@ -28,8 +28,8 @@ test('validates allocations: 10 whole numbers summing to exactly 100', () => {
 test('plays a match on equal-value hills', () => {
   const a = [20, 20, 20, 20, 20, 0, 0, 0, 0, 0]
   const b = [0, 0, 0, 0, 0, 20, 20, 20, 20, 20]
-  assert.deepEqual(playMatch(a, b), { aHills: 5, bHills: 5, aPoints: 0.5 })
-  assert.deepEqual(playMatch(even, even), { aHills: 0, bHills: 0, aPoints: 0.5 })
+  assert.deepEqual(playMatch(a, b), { aHills: 5, bHills: 5, aScore: 5, bScore: 5, aPoints: 0.5 })
+  assert.deepEqual(playMatch(even, even), { aHills: 0, bHills: 0, aScore: 0, bScore: 0, aPoints: 0.5 })
   const c = [11, 11, 11, 11, 11, 11, 11, 11, 12, 0]
   assert.equal(playMatch(c, even).aPoints, 1)
   assert.equal(playMatch(c, even).aHills, 9)
@@ -106,7 +106,7 @@ test('full format reaches 16, then 4, then a champion', () => {
               ]),
             )
           : drawGroups(remaining, plan.groupCount, `s${stageNumber}`)
-      const stage = { kind: plan.kind, groups, advancePerGroup: plan.advancePerGroup, seed: 's' }
+      const stage = { kind: plan.kind, scoring: plan.scoring, groups, advancePerGroup: plan.advancePerGroup, seed: 's' }
       const games: GameAllocs[] = []
       while (!stageComplete(stage, games)) {
         const game: GameAllocs = {}
@@ -148,4 +148,19 @@ test('hill records and field average', async () => {
   assert.equal(fieldAverage(game, ['me', 'a', 'b'])[0], 50 / 3)
   const state = matchState(['me', 'a'], [game])
   assert.deepEqual(state.games[0].allocs.me, game.me)
+})
+
+test('final four use weighted hills: hill N is worth N points', async () => {
+  const { playMatch, matchState, projectFormat } = await import('../src/lib/tournament.ts')
+  // a wins hills 1-6 (21 points); b wins hills 7-10 (34 points)
+  const a = [16, 16, 16, 16, 16, 16, 1, 1, 1, 1]
+  const b = [0, 0, 0, 0, 0, 0, 25, 25, 25, 25]
+  assert.equal(playMatch(a, b).aPoints, 1, 'classic: more hills wins')
+  const weighted = playMatch(a, b, 'weighted')
+  assert.deepEqual([weighted.aScore, weighted.bScore, weighted.aPoints], [21, 34, 0])
+  const state = matchState(['a', 'b'], [{ a, b }, { a, b }], 'weighted')
+  assert.equal(state.winner, 'b')
+  assert.deepEqual(state.games[0].score, { a: 21, b: 34 })
+  const format = projectFormat(150)
+  assert.deepEqual(format.map((s) => s.scoring), ['classic', 'classic', 'classic', 'weighted', 'weighted'])
 })

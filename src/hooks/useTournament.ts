@@ -6,6 +6,7 @@ import {
   type Alloc,
   type GameAllocs,
   type Groups,
+  type Scoring,
   type StageKind,
 } from '../lib/tournament'
 
@@ -23,6 +24,7 @@ export type StageView = {
   index: number
   name: string
   kind: StageKind
+  scoring: Scoring
   groupCount: number
   advancePerGroup: number
   seed: string
@@ -104,6 +106,7 @@ function parseStages(raw: unknown): StageView[] {
         index: Number(s.index) || 0,
         name: typeof s.name === 'string' ? s.name : 'Stage',
         kind: (s.kind === 'bracket' ? 'bracket' : 'groups') as StageKind,
+        scoring: (s.scoring === 'weighted' ? 'weighted' : 'classic') as Scoring,
         groupCount: Number(s.groupCount) || 1,
         advancePerGroup: Number(s.advancePerGroup) || 1,
         seed: typeof s.seed === 'string' ? s.seed : '',

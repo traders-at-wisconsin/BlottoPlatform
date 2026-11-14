@@ -66,6 +66,11 @@ export function BoardPage() {
       )}
 
       <main className="board-main">
+        {stage?.scoring === 'weighted' && tournament.status === 'running' && (
+          <div className="weighted-note board-weighted">
+            <b>Weighted hills.</b> Hill N is worth N points (55 total). Head to head, best of 3.
+          </div>
+        )}
         {tournament.status === 'complete' && tournament.championUid && (
           <div className="banner board-banner">
             <p className="eyebrow">Champion</p>

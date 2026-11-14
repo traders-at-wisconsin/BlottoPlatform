@@ -21,12 +21,20 @@ export type Draft = Array<number | null>
 export type GameAllocs = Record<string, Alloc>
 export type Groups = Record<string, string[]>
 export type StageKind = 'groups' | 'bracket'
+/** classic: every hill counts once. weighted: hill i is worth i points (final four). */
+export type Scoring = 'classic' | 'weighted'
 
 export type StagePlan = {
   name: string
   kind: StageKind
+  scoring: Scoring
   groupCount: number
   advancePerGroup: number
+}
+
+/** Points a hill is worth under the given scoring. */
+export function hillValue(hill: number, scoring: Scoring): number {
+  return scoring === 'weighted' ? hill + 1 : 1
 }
 
 // ---------------------------------------------------------------------------
@@ -98,18 +106,38 @@ function evenSplit(hills: number[]): Alloc {
 // ---------------------------------------------------------------------------
 // Matches
 
-export type MatchResult = { aHills: number; bHills: number; aPoints: number }
+/**
+ * aHills/bHills: hills won. aScore/bScore: hill value won (equals hills won
+ * under classic scoring). aPoints: match points for a (1 win, 0.5 tie, 0 loss).
+ */
+export type MatchResult = {
+  aHills: number
+  bHills: number
+  aScore: number
+  bScore: number
+  aPoints: number
+}
 
-/** More soldiers wins a hill; equal is nobody's. More hills wins; equal is a tie. */
-export function playMatch(a: Alloc, b: Alloc): MatchResult {
+/**
+ * More soldiers wins a hill; equal is nobody's. Classic: more hills wins.
+ * Weighted: more hill value wins (hill i worth i). Equal is a tie.
+ */
+export function playMatch(a: Alloc, b: Alloc, scoring: Scoring = 'classic'): MatchResult {
   let aHills = 0
   let bHills = 0
+  let aScore = 0
+  let bScore = 0
   for (let i = 0; i < HILLS; i += 1) {
-    if (a[i] > b[i]) aHills += 1
-    else if (b[i] > a[i]) bHills += 1
+    if (a[i] > b[i]) {
+      aHills += 1
+      aScore += hillValue(i, scoring)
+    } else if (b[i] > a[i]) {
+      bHills += 1
+      bScore += hillValue(i, scoring)
+    }
   }
-  const aPoints = aHills > bHills ? 1 : aHills < bHills ? 0 : 0.5
-  return { aHills, bHills, aPoints }
+  const aPoints = aScore > bScore ? 1 : aScore < bScore ? 0 : 0.5
+  return { aHills, bHills, aScore, bScore, aPoints }
 }
 
 // ---------------------------------------------------------------------------
@@ -267,6 +295,8 @@ function breakTie(tied: StandingRow[], games: GameAllocs[], seed: string): Stand
 
 export type BracketGame = {
   hills: Record<string, number>
+  /** Hill value won: the score that decides the game. */
+  score: Record<string, number>
   allocs: Record<string, Alloc>
   winner: string | null
 }
@@ -277,18 +307,23 @@ export type MatchState = {
   winner: string | null
 }
 
-export function matchState(players: string[], games: GameAllocs[]): MatchState {
+export function matchState(
+  players: string[],
+  games: GameAllocs[],
+  scoring: Scoring = 'classic',
+): MatchState {
   const [a, b] = players
   const wins: Record<string, number> = { [a]: 0, [b]: 0 }
   const played: BracketGame[] = []
   let winner: string | null = null
   for (const game of games) {
     if (winner || !game[a] || !game[b]) continue
-    const result = playMatch(game[a], game[b])
+    const result = playMatch(game[a], game[b], scoring)
     const gameWinner = result.aPoints === 1 ? a : result.aPoints === 0 ? b : null
     if (gameWinner) wins[gameWinner] += 1
     played.push({
       hills: { [a]: result.aHills, [b]: result.bHills },
+      score: { [a]: result.aScore, [b]: result.bScore },
       allocs: { [a]: game[a], [b]: game[b] },
       winner: gameWinner,
     })
@@ -302,6 +337,7 @@ export function matchState(players: string[], games: GameAllocs[]): MatchState {
 
 export type StageInfo = {
   kind: StageKind
+  scoring?: Scoring
   groups: Groups
   advancePerGroup: number
   seed: string
@@ -309,14 +345,14 @@ export type StageInfo = {
 
 export function stageComplete(stage: StageInfo, games: GameAllocs[]): boolean {
   if (stage.kind === 'groups') return games.length >= GAMES_PER_STAGE
-  return Object.values(stage.groups).every((pair) => matchState(pair, games).winner)
+  return Object.values(stage.groups).every((pair) => matchState(pair, games, stage.scoring).winner)
 }
 
 /** uid -> group id for everyone who plays the next game of this stage. */
 export function nextParticipants(stage: StageInfo, games: GameAllocs[]): Record<string, string> {
   const participants: Record<string, string> = {}
   for (const [groupId, members] of Object.entries(stage.groups)) {
-    if (stage.kind === 'bracket' && matchState(members, games).winner) continue
+    if (stage.kind === 'bracket' && matchState(members, games, stage.scoring).winner) continue
     members.forEach((uid) => {
       participants[uid] = groupId
     })
@@ -332,7 +368,7 @@ function sortedGroupIds(groups: Groups): string[] {
 export function stageAdvancers(stage: StageInfo, games: GameAllocs[]): string[] {
   const groupIds = sortedGroupIds(stage.groups)
   if (stage.kind === 'bracket') {
-    return groupIds.map((id) => matchState(stage.groups[id], games).winner).filter(
+    return groupIds.map((id) => matchState(stage.groups[id], games, stage.scoring).winner).filter(
       (uid): uid is string => Boolean(uid),
     )
   }
@@ -358,14 +394,15 @@ export function stageAdvancers(stage: StageInfo, games: GameAllocs[]): string[] 
  */
 export function suggestStage(players: number, stageNumber: number): StagePlan | null {
   if (players <= 1) return null
-  if (players === 2) return { name: 'Championship', kind: 'bracket', groupCount: 1, advancePerGroup: 1 }
-  if (players === 4) return { name: 'Finals', kind: 'bracket', groupCount: 2, advancePerGroup: 1 }
-  if (players === 3) return { name: 'Playoff', kind: 'groups', groupCount: 1, advancePerGroup: 2 }
-  if (players <= 16) return { name: 'Semifinal', kind: 'groups', groupCount: 1, advancePerGroup: 4 }
+  // The final four play head to head on weighted hills.
+  if (players === 2) return { name: 'Championship', kind: 'bracket', scoring: 'weighted', groupCount: 1, advancePerGroup: 1 }
+  if (players === 4) return { name: 'Finals', kind: 'bracket', scoring: 'weighted', groupCount: 2, advancePerGroup: 1 }
+  if (players === 3) return { name: 'Playoff', kind: 'groups', scoring: 'classic', groupCount: 1, advancePerGroup: 2 }
+  if (players <= 16) return { name: 'Semifinal', kind: 'groups', scoring: 'classic', groupCount: 1, advancePerGroup: 4 }
   const name = `Round ${stageNumber}`
-  if (players >= 64) return { name, kind: 'groups', groupCount: 4, advancePerGroup: 12 }
-  if (players >= 32) return { name, kind: 'groups', groupCount: 2, advancePerGroup: 8 }
-  return { name, kind: 'groups', groupCount: 1, advancePerGroup: 16 }
+  if (players >= 64) return { name, kind: 'groups', scoring: 'classic', groupCount: 4, advancePerGroup: 12 }
+  if (players >= 32) return { name, kind: 'groups', scoring: 'classic', groupCount: 2, advancePerGroup: 8 }
+  return { name, kind: 'groups', scoring: 'classic', groupCount: 1, advancePerGroup: 16 }
 }
 
 /** Groups for a new stage. Brackets pair seeds 1 v N; group stages draw by seed. */

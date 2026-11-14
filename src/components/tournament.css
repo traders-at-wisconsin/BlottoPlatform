@@ -861,3 +861,71 @@
     font-size: 0.7rem;
   }
 }
+
+/* Weighted hills (final four) */
+
+.weighted-note {
+  margin: 0;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--you);
+  border-radius: 4px;
+  background: var(--you-bg);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.weighted-note b {
+  color: var(--you);
+}
+
+.board-weighted {
+  font-size: 1.05rem;
+}
+
+.hill-worth {
+  margin-left: 0.3rem;
+  font-family: var(--font-mono);
+  font-style: normal;
+  font-size: 0.68rem;
+  color: var(--you);
+}
+
+.h2h-hill em {
+  display: block;
+  font-style: normal;
+  color: var(--you);
+}
+
+.weighted-rules {
+  padding: 0.85rem 1rem 1rem;
+  border: 1px solid var(--you);
+  border-radius: 4px;
+  background: var(--you-bg);
+}
+
+.weighted-rules h3 {
+  margin-top: 0;
+  color: var(--you);
+}
+
+.weighted-scale {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  align-items: end;
+  gap: 0.25rem;
+  height: 4.5rem;
+  margin-top: 0.85rem;
+}
+
+.weighted-scale span {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 0.15rem;
+  border-radius: 2px 2px 0 0;
+  background: linear-gradient(0deg, var(--you), rgba(255, 197, 61, 0.35));
+  color: #1a1300;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+}

@@ -235,11 +235,18 @@ async function main() {
     Object.entries(stageRaw.groups).forEach(([g, members]) => {
       if (members) groups[g] = Object.values(members as object) as string[]
     })
-    const stage: T.StageInfo = { kind: stageRaw.kind, groups, advancePerGroup: stageRaw.advancePerGroup, seed: stageRaw.seed }
+    const stage: T.StageInfo = {
+      kind: stageRaw.kind,
+      scoring: stageRaw.scoring,
+      groups,
+      advancePerGroup: stageRaw.advancePerGroup,
+      seed: stageRaw.seed,
+    }
     const stageUids = new Set(Object.values(groups).flat())
     uids.filter((uid) => !stageUids.has(uid)).forEach((uid) => eliminated.add(uid))
     const sizes = Object.values(groups).map((m) => m.length)
-    console.log(`\n${stageRaw.name}: ${stageUids.size} players, ${stageRaw.kind}, groups [${sizes.join(', ')}]`)
+    console.log(`\n${stageRaw.name}: ${stageUids.size} players, ${stageRaw.kind}, ${stageRaw.scoring} scoring, groups [${sizes.join(', ')}]`)
+    check(stageRaw.scoring === (stageRaw.kind === 'bracket' ? 'weighted' : 'classic'), 'final four use weighted hills')
 
     const allocs: T.GameAllocs[] = []
     let number = 0

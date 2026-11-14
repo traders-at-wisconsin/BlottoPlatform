@@ -193,7 +193,7 @@ function FormatPreview({ stages }: { stages: ProjectedStage[] }) {
           <strong>{stage.name}</strong>{' '}
           <span className="muted">
             {stage.kind === 'bracket'
-              ? `${stage.players} players, ${stage.groupSizes.length === 1 ? 'head to head' : `${stage.groupSizes.length} head-to-head matches`}, best of 3`
+              ? `${stage.players} players, ${stage.groupSizes.length === 1 ? 'head to head' : `${stage.groupSizes.length} head-to-head matches`}, best of 3${stage.scoring === 'weighted' ? ', weighted hills' : ''}`
               : `${stage.players} players in ${stage.groupSizes.length === 1 ? '1 group' : `${stage.groupSizes.length} groups of ${Math.min(...stage.groupSizes)}${Math.max(...stage.groupSizes) !== Math.min(...stage.groupSizes) ? `–${Math.max(...stage.groupSizes)}` : ''}`}, ${GAMES_PER_STAGE} games, top ${stage.advancePerGroup}${stage.groupSizes.length > 1 ? ' per group' : ''} advance`}
             {' → '}
             {stage.advancing === 1 ? 'champion' : `${stage.advancing} advance`}

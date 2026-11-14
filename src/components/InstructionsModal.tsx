@@ -4,29 +4,36 @@ import { GAME_SECONDS, GAMES_PER_STAGE, HILLS, SOLDIERS } from '../lib/tournamen
 type InstructionsModalProps = {
   open: boolean
   onClose: () => void
+  /** Lead with the weighted-hill rules used by the final four. */
+  weighted?: boolean
 }
 
 const SEEN_KEY = 'blotto-instructions-seen'
+const WEIGHTED_SEEN_KEY = 'blotto-weighted-rules-seen'
 
-export function instructionsSeen(): boolean {
+function seen(key: string): boolean {
   try {
-    return window.localStorage.getItem(SEEN_KEY) === '1'
+    return window.localStorage.getItem(key) === '1'
   } catch {
     return false
   }
 }
 
-function markSeen() {
+export const instructionsSeen = () => seen(SEEN_KEY)
+export const weightedRulesSeen = () => seen(WEIGHTED_SEEN_KEY)
+
+function markSeen(weighted: boolean) {
   try {
     window.localStorage.setItem(SEEN_KEY, '1')
+    if (weighted) window.localStorage.setItem(WEIGHTED_SEEN_KEY, '1')
   } catch {
     // Private mode: the popup just shows again next time.
   }
 }
 
-export function InstructionsModal({ open, onClose }: InstructionsModalProps) {
+export function InstructionsModal({ open, onClose, weighted = false }: InstructionsModalProps) {
   function close() {
-    markSeen()
+    markSeen(weighted)
     onClose()
   }
 
@@ -51,7 +58,33 @@ export function InstructionsModal({ open, onClose }: InstructionsModalProps) {
         onClick={(event) => event.stopPropagation()}
       >
         <p className="eyebrow">Colonel Blotto</p>
-        <h2 id="how-to-play">How to play</h2>
+        <h2 id="how-to-play">{weighted ? 'Final four: new rules' : 'How to play'}</h2>
+
+        {weighted && (
+          <div className="weighted-rules">
+            <h3>Weighted hills</h3>
+            <ul>
+              <li>
+                Hill <strong>N is worth N points</strong>: hill 1 = 1 point, hill 10 = 10 points.
+                55 points in total.
+              </li>
+              <li>
+                Win a hill by placing more soldiers there, as before. Win the game by taking{' '}
+                <strong>more points</strong>, not more hills.
+              </li>
+              <li>
+                Head to head, <strong>best of 3</strong>. A tied game is replayed.
+              </li>
+            </ul>
+            <div className="weighted-scale" aria-hidden="true">
+              {Array.from({ length: HILLS }, (_, i) => (
+                <span key={i} style={{ height: `${(i + 1) * 10}%` }}>
+                  {i + 1}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         <h3>Each game</h3>
         <ul>
@@ -88,8 +121,9 @@ export function InstructionsModal({ open, onClose }: InstructionsModalProps) {
             tied players, then a random draw.
           </li>
           <li>
-            The last 16 play a semifinal round. The top 4 play head-to-head, best of 3 (tied games
-            are replayed), until one champion is left.
+            The last 16 play a semifinal round. The top 4 play head to head, best of 3, on{' '}
+            <strong>weighted hills</strong> (hill N is worth N points). Tied games are replayed.
+            One champion is left.
           </li>
         </ul>
 

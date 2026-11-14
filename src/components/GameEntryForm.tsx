@@ -11,6 +11,7 @@ import {
   readSlots,
   SOLDIERS,
   type Draft,
+  type Scoring,
 } from '../lib/tournament'
 import { Countdown } from './Countdown'
 import './GameEntryForm.css'
@@ -21,6 +22,7 @@ type GameEntryFormProps = {
   endsAt: number
   eyebrow: string
   opponentsLabel: string
+  scoring?: Scoring
 }
 
 const emptyDraft = (): Draft => Array.from({ length: HILLS }, () => null)
@@ -29,7 +31,15 @@ function sameSlots(a: Draft, b: Draft | null) {
   return Boolean(b) && a.every((value, i) => (value ?? 0) === (b![i] ?? 0))
 }
 
-export function GameEntryForm({ gameId, uid, endsAt, eyebrow, opponentsLabel }: GameEntryFormProps) {
+export function GameEntryForm({
+  gameId,
+  uid,
+  endsAt,
+  eyebrow,
+  opponentsLabel,
+  scoring = 'classic',
+}: GameEntryFormProps) {
+  const weighted = scoring === 'weighted'
   const [values, setValues] = useState<Draft>(emptyDraft)
   const [submittedSlots, setSubmittedSlots] = useState<Draft | null>(null)
   const [loading, setLoading] = useState(true)
@@ -140,6 +150,13 @@ export function GameEntryForm({ gameId, uid, endsAt, eyebrow, opponentsLabel }: 
         <Countdown endsAt={endsAt} />
       </header>
 
+      {weighted && (
+        <p className="weighted-note">
+          <b>Weighted hills.</b> Hill N is worth N points. Win more points than your opponent, not
+          more hills.
+        </p>
+      )}
+
       <div className={`allocation-total-bar${total > SOLDIERS ? ' is-over' : valid ? ' is-ok' : ''}`}>
         <span>
           <strong>{total}</strong> / {SOLDIERS}
@@ -152,7 +169,10 @@ export function GameEntryForm({ gameId, uid, endsAt, eyebrow, opponentsLabel }: 
       <div className="allocation-grid">
         {values.map((value, hill) => (
           <label key={hill} className="allocation-slot">
-            <span>Hill {hill + 1}</span>
+            <span>
+              Hill {hill + 1}
+              {weighted && <em className="hill-worth">{hill + 1} pt{hill === 0 ? '' : 's'}</em>}
+            </span>
             <input
               type="text"
               inputMode="numeric"

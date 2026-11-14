@@ -31,7 +31,8 @@ export function StageBoard({ view, highlightUid, onlyGroupId }: StageBoardProps)
           <BracketMatch
             key={groupId}
             title={title}
-            state={matchState(members, scoredAllocs)}
+            state={matchState(members, scoredAllocs, stage.scoring)}
+            scoring={stage.scoring}
             players={players}
             highlightUid={highlightUid}
           />
