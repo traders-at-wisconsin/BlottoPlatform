@@ -16,8 +16,6 @@ Contents: [Event-day checklist](#event-day-checklist) · [Rules](#rules) · [For
 ## Event-day checklist
 
 **The day before**
-- [ ] The Firebase project is on the **Blaze** plan, with a budget alert. The free plan allows only 100 simultaneous database connections, so player 101 onwards can't connect.
-- [ ] Authentication → Sign-in method: **Anonymous**, **Google** and **Email/Password** are enabled.
 - [ ] Every organizer can sign in at `/organizer` and reach `/admin` (see [Organizer access](#organizer-access)).
 - [ ] A QR code points to the player link.
 - [ ] Optional: run one stage with a few friends, then hard reset.
